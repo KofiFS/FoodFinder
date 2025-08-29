@@ -1,9 +1,9 @@
 @echo off
-echo Starting Food Finder Application...
+echo Starting Food Spider Web Application...
 echo.
-echo This will start the development server and open your browser.
+echo This will open your browser to http://localhost:3001
 echo.
-echo Press Ctrl+C to stop the server when you're done.
+npm run dev
 echo.
+echo Application has stopped.
 pause
-npm start
