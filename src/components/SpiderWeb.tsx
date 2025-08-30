@@ -41,6 +41,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set())
   const [showComparison, setShowComparison] = useState(false)
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null)
+  const [showRecommendationBox, setShowRecommendationBox] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Update container dimensions on resize
@@ -556,6 +557,60 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
     }
   }
 
+  // Get current recommendation box options
+  const getCurrentRecommendations = () => {
+    if (!selectedCenter) {
+      // Initial state: show 1 recommendation + 4 options
+      const allOptions = [...filteredOptions]
+      if (allOptions.length === 0) return null
+      
+      // Pick a random center recommendation
+      const centerOption = allOptions[Math.floor(Math.random() * allOptions.length)]
+      const remainingOptions = allOptions.filter(option => option.id !== centerOption.id)
+      
+      // Sort remaining options by price
+      const sortedOptions = remainingOptions.sort((a, b) => a.price - b.price)
+      
+      // Get 2 cheaper and 2 more expensive options
+      const cheaperOptions = sortedOptions.slice(0, 2)
+      const moreExpensiveOptions = sortedOptions.slice(-2)
+      
+      return {
+        center: centerOption,
+        cheaper: cheaperOptions,
+        moreExpensive: moreExpensiveOptions
+      }
+    } else {
+      // Dynamic state: selected center + 2 cheaper + 2 more expensive
+      const centerPrice = selectedCenter.price
+      const remainingOptions = filteredOptions.filter(option => option.id !== selectedCenter.id)
+      
+      // Get options cheaper than center
+      const cheaperOptions = remainingOptions
+        .filter(option => option.price < centerPrice)
+        .sort((a, b) => b.price - a.price) // Closest to center price first
+        .slice(0, 2)
+      
+      // Get options more expensive than center
+      const moreExpensiveOptions = remainingOptions
+        .filter(option => option.price > centerPrice)
+        .sort((a, b) => a.price - b.price) // Closest to center price first
+        .slice(0, 2)
+      
+             // Don't fill cheaper slots with more expensive options - leave them blank if none exist
+       
+       // Don't fill more expensive slots with cheaper options - leave them blank if none exist
+      
+      return {
+        center: selectedCenter,
+        cheaper: cheaperOptions,
+        moreExpensive: moreExpensiveOptions
+      }
+    }
+  }
+  
+  const currentRecommendations = getCurrentRecommendations()
+
   return (
     <div style={{
       position: 'fixed',
@@ -625,59 +680,81 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         <button onClick={handleZoomIn} style={zoomButtonStyle}>+</button>
       </div>
 
-      {/* Compare Button - Top Center */}
-      <div style={{
-        position: 'fixed',
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1000
-      }} data-no-drag="true">
-        <button
-          onClick={handleCompare}
-          disabled={selectedForComparison.size < 2}
-          title={`Selected: ${selectedForComparison.size}/4 items`}
-          style={{
-            padding: '16px 24px',
-            background: selectedForComparison.size >= 2 
-              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-              : 'rgba(100, 100, 100, 0.4)',
-            border: selectedForComparison.size >= 2
-              ? '2px solid rgba(245, 158, 11, 0.6)'
-              : '2px solid rgba(100, 100, 100, 0.4)',
-            borderRadius: '50px',
-            color: 'white',
-            cursor: selectedForComparison.size >= 2 ? 'pointer' : 'not-allowed',
-            backdropFilter: 'blur(15px)',
-            opacity: selectedForComparison.size >= 2 ? 1 : 0.7,
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            fontSize: '16px',
-            fontWeight: '600',
-            boxShadow: selectedForComparison.size >= 2 
-              ? '0 8px 25px rgba(245, 158, 11, 0.4)'
-              : '0 4px 15px rgba(0, 0, 0, 0.3)',
-            minWidth: '180px',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            if (selectedForComparison.size >= 2) {
-              e.currentTarget.style.transform = 'scale(1.05)'
-              e.currentTarget.style.boxShadow = '0 12px 35px rgba(245, 158, 11, 0.6)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (selectedForComparison.size >= 2) {
-              e.currentTarget.style.transform = 'scale(1)'
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.4)'
-            }
-          }}
-        >
-          ⚖️ Compare ({selectedForComparison.size}/4)
-        </button>
-      </div>
+             {/* Compare Button - Top Center */}
+       <div style={{
+         position: 'fixed',
+         top: '20px',
+         left: '50%',
+         transform: 'translateX(-50%)',
+         zIndex: 1000,
+         display: 'flex',
+         flexDirection: 'column',
+         alignItems: 'center'
+       }} data-no-drag="true">
+         <button
+           onClick={handleCompare}
+           disabled={selectedForComparison.size < 2}
+           title={`Selected: ${selectedForComparison.size}/4 items`}
+           style={{
+             padding: '16px 24px',
+             background: selectedForComparison.size >= 2 
+               ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+               : 'rgba(100, 100, 100, 0.4)',
+             border: selectedForComparison.size >= 2
+               ? '2px solid rgba(245, 158, 11, 0.6)'
+               : '2px solid rgba(100, 100, 100, 0.4)',
+             borderRadius: '50px',
+             color: 'white',
+             cursor: selectedForComparison.size >= 2 ? 'pointer' : 'not-allowed',
+             backdropFilter: 'blur(15px)',
+             opacity: selectedForComparison.size >= 2 ? 1 : 0.7,
+             transition: 'all 0.3s ease',
+             display: 'flex',
+             alignItems: 'center',
+             gap: '10px',
+             fontSize: '16px',
+             fontWeight: '600',
+             boxShadow: selectedForComparison.size >= 2 
+               ? '0 8px 25px rgba(245, 158, 11, 0.4)'
+               : '0 4px 15px rgba(0, 0, 0, 0.3)',
+             minWidth: '180px',
+             justifyContent: 'center'
+           }}
+           onMouseEnter={(e) => {
+             if (selectedForComparison.size >= 2) {
+               e.currentTarget.style.transform = 'scale(1.05)'
+               e.currentTarget.style.boxShadow = '0 12px 35px rgba(245, 158, 11, 0.6)'
+             }
+           }}
+           onMouseLeave={(e) => {
+             if (selectedForComparison.size >= 2) {
+               e.currentTarget.style.transform = 'scale(1)'
+               e.currentTarget.style.boxShadow = '0 8px 25px rgba(245, 158, 11, 0.4)'
+             }
+           }}
+         >
+           ⚖️ Compare ({selectedForComparison.size}/4)
+         </button>
+         
+         {/* AI Choice Button */}
+         <button
+           onClick={() => setShowRecommendationBox(true)}
+           style={{
+             padding: '12px 20px',
+             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+             color: 'white',
+             border: 'none',
+             borderRadius: '50px',
+             cursor: 'pointer',
+             fontSize: '16px',
+             fontWeight: '600',
+             minWidth: '140px',
+             marginTop: '10px'
+           }}
+         >
+           🤖 AI Choice
+         </button>
+       </div>
 
       {/* Instructions */}
       <div style={{
@@ -998,6 +1075,346 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         selectedOptions={foodOptions.filter(option => selectedForComparison.has(option.id))}
         aiRecommendation={aiRecommendation}
       />
+
+      {/* Recommendation Box Overlay */}
+      {showRecommendationBox && currentRecommendations && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'rgba(0, 0, 0, 0.95)',
+          border: '2px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '20px',
+          padding: '30px',
+          zIndex: 2000,
+          minWidth: '600px'
+        }}>
+          {/* Close Button */}
+          <button
+            onClick={() => setShowRecommendationBox(false)}
+            style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '30px',
+              height: '30px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '18px'
+            }}
+          >
+            ✕
+          </button>
+          
+          {/* Title */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '30px',
+            color: 'white',
+            fontSize: '24px',
+            fontWeight: 'bold'
+          }}>
+            🍔 AI Recommendations
+          </div>
+          
+          {/* Recommendation Layout */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '20px'
+          }}>
+                         {/* Cheaper Options (Left) */}
+             <div style={{
+               display: 'flex',
+               flexDirection: 'column',
+               gap: '15px',
+               alignItems: 'center'
+             }}>
+               <div style={{
+                 color: '#10b981',
+                 fontSize: '16px',
+                 fontWeight: 'bold',
+                 marginBottom: '10px'
+               }}>
+                 💰 Cheaper
+               </div>
+                               {currentRecommendations.cheaper.map((option) => (
+                  <div
+                    key={option.id}
+                    style={{
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '2px solid rgba(16, 185, 129, 0.3)',
+                      borderRadius: '15px',
+                      padding: '15px',
+                      minWidth: '150px',
+                      textAlign: 'center',
+                      color: 'white',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleComparisonToggle(option.id)
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '20px',
+                        height: '20px',
+                        border: '2px solid rgba(255, 255, 255, 0.6)',
+                        borderRadius: '4px',
+                        background: selectedForComparison.has(option.id) 
+                          ? '#10b981' 
+                          : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {selectedForComparison.has(option.id) && (
+                        <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                      )}
+                    </div>
+                    
+                    {/* Clickable content area */}
+                    <div
+                      onClick={() => {
+                        onCenterChange(option)
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                        {option.name}
+                      </div>
+                      <div style={{ fontSize: '14px', opacity: 0.8 }}>
+                        {option.location}
+                      </div>
+                      <div style={{ 
+                        fontSize: '18px', 
+                        fontWeight: 'bold', 
+                        color: '#10b981',
+                        marginTop: '5px'
+                      }}>
+                        ${option.price}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+               {/* Fill empty slots with placeholder cards */}
+               {Array.from({ length: 2 - currentRecommendations.cheaper.length }).map((_, index) => (
+                 <div
+                   key={`empty-cheaper-${index}`}
+                   style={{
+                     background: 'rgba(16, 185, 129, 0.05)',
+                     border: '2px dashed rgba(16, 185, 129, 0.2)',
+                     borderRadius: '15px',
+                     padding: '15px',
+                     minWidth: '150px',
+                     textAlign: 'center',
+                     color: 'rgba(255, 255, 255, 0.3)',
+                     minHeight: '80px',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center'
+                   }}
+                 >
+                   <div style={{ fontSize: '14px' }}>No cheaper options</div>
+                 </div>
+               ))}
+             </div>
+            
+            {/* Center Option */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '15px'
+            }}>
+              <div style={{
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px'
+              }}>
+                🎯 Current Choice
+              </div>
+                             <div style={{
+                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
+                 border: '3px solid #666',
+                 borderRadius: '20px',
+                 padding: '25px',
+                 minWidth: '180px',
+                 textAlign: 'center',
+                 color: '#1a1a1a',
+                 position: 'relative'
+               }}>
+                 {/* Checkbox */}
+                 <div
+                   onClick={(e) => {
+                     e.stopPropagation()
+                     handleComparisonToggle(currentRecommendations.center.id)
+                   }}
+                   style={{
+                     position: 'absolute',
+                     top: '15px',
+                     right: '15px',
+                     width: '20px',
+                     height: '20px',
+                     border: '2px solid rgba(0, 0, 0, 0.4)',
+                     borderRadius: '4px',
+                     background: selectedForComparison.has(currentRecommendations.center.id) 
+                       ? '#10b981' 
+                       : 'transparent',
+                     cursor: 'pointer',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center',
+                     transition: 'all 0.2s ease'
+                   }}
+                 >
+                   {selectedForComparison.has(currentRecommendations.center.id) && (
+                     <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                   )}
+                 </div>
+                 
+                 <div style={{ fontSize: '32px', marginBottom: '10px' }}>🍔</div>
+                 <div style={{ 
+                   fontWeight: 'bold', 
+                   fontSize: '18px',
+                   marginBottom: '8px'
+                 }}>
+                   {currentRecommendations.center.name}
+                 </div>
+                 <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: '8px' }}>
+                   {currentRecommendations.center.location}
+                 </div>
+                 <div style={{ 
+                   fontSize: '24px', 
+                   fontWeight: 'bold',
+                   color: '#1a1a1a'
+                 }}>
+                   ${currentRecommendations.center.price}
+                 </div>
+               </div>
+            </div>
+            
+                         {/* More Expensive Options (Right) */}
+             <div style={{
+               display: 'flex',
+               flexDirection: 'column',
+               gap: '15px',
+               alignItems: 'center'
+             }}>
+               <div style={{
+                 color: '#ef4444',
+                 fontSize: '16px',
+                 fontWeight: 'bold',
+                 marginBottom: '10px'
+               }}>
+                 💎 More Expensive
+               </div>
+                               {currentRecommendations.moreExpensive.map((option) => (
+                  <div
+                    key={option.id}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '2px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '15px',
+                      padding: '15px',
+                      minWidth: '150px',
+                      textAlign: 'center',
+                      color: 'white',
+                      position: 'relative'
+                    }}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleComparisonToggle(option.id)
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '20px',
+                        height: '20px',
+                        border: '2px solid rgba(255, 255, 255, 0.6)',
+                        borderRadius: '4px',
+                        background: selectedForComparison.has(option.id) 
+                          ? '#ef4444' 
+                          : 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {selectedForComparison.has(option.id) && (
+                        <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+                      )}
+                    </div>
+                    
+                    {/* Clickable content area */}
+                    <div
+                      onClick={() => {
+                        onCenterChange(option)
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                        {option.name}
+                      </div>
+                      <div style={{ fontSize: '14px', opacity: 0.8 }}>
+                        {option.location}
+                      </div>
+                      <div style={{ 
+                        fontSize: '18px', 
+                        fontWeight: 'bold', 
+                        color: '#ef4444',
+                        marginTop: '5px'
+                      }}>
+                        ${option.price}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+               {/* Fill empty slots with placeholder cards */}
+               {Array.from({ length: 2 - currentRecommendations.moreExpensive.length }).map((_, index) => (
+                 <div
+                   key={`empty-expensive-${index}`}
+                   style={{
+                     background: 'rgba(239, 68, 68, 0.05)',
+                     border: '2px dashed rgba(239, 68, 68, 0.2)',
+                     borderRadius: '15px',
+                     padding: '15px',
+                     minWidth: '150px',
+                     textAlign: 'center',
+                     color: 'rgba(255, 255, 255, 0.3)',
+                     minHeight: '80px',
+                     display: 'flex',
+                     alignItems: 'center',
+                     justifyContent: 'center'
+                   }}
+                 >
+                   <div style={{ fontSize: '14px' }}>No more expensive options</div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
+      )}
     </div>
     </div>
   )
