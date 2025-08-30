@@ -754,6 +754,34 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
          >
            🤖 AI Choice
          </button>
+         
+         {/* Back Button */}
+         <button
+           onClick={onReset}
+           style={{
+             padding: '12px 20px',
+             background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+             color: 'white',
+             border: 'none',
+             borderRadius: '50px',
+             cursor: 'pointer',
+             fontSize: '16px',
+             fontWeight: '600',
+             minWidth: '140px',
+             marginTop: '10px',
+             transition: 'all 0.3s ease'
+           }}
+           onMouseEnter={(e) => {
+             e.currentTarget.style.transform = 'scale(1.05)'
+             e.currentTarget.style.boxShadow = '0 8px 25px rgba(55, 65, 81, 0.4)'
+           }}
+           onMouseLeave={(e) => {
+             e.currentTarget.style.transform = 'scale(1)'
+             e.currentTarget.style.boxShadow = 'none'
+           }}
+         >
+           🔙 Back to Search
+         </button>
        </div>
 
       {/* Instructions */}

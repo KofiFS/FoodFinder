@@ -114,26 +114,30 @@ const FoodCard: React.FC<FoodCardProps> = ({
   const handleGetDirections = async (e: React.MouseEvent) => {
     e.stopPropagation()
     
-    if (nearestStore && userLocation) {
-      // Use Google Places service for better URL generation
+    // Use nearby locations from FoodChainService if available
+    if (option.nearbyLocations && option.nearbyLocations.length > 0 && userLocation) {
+      const nearestLocation = option.nearbyLocations[0]
+      
       try {
-        const { GooglePlacesService } = await import('../services/googlePlacesService')
-        const placesService = GooglePlacesService.getInstance()
-        
-        // Create a place object for the nearest store
-        const place = {
-          place_id: nearestStore.placeId,
-          name: nearestStore.name,
-          formatted_address: nearestStore.address,
-          geometry: {
-            location: {
-              lat: nearestStore.lat,
-              lng: nearestStore.lng
-            }
-          },
-          business_status: 'OPERATIONAL'
+        // Use Google Maps directions with proper place_id
+        if (nearestLocation.placeId && nearestLocation.placeId !== 'undefined') {
+          // Open Google Maps with the specific place
+          const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=place_id:${nearestLocation.placeId}&travelmode=driving`
+          window.open(directionsUrl, '_blank')
+        } else {
+          // Fallback to coordinates if place_id is invalid
+          const directionsUrl = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${nearestLocation.coordinates.lat},${nearestLocation.coordinates.lng}`
+          window.open(directionsUrl, '_blank')
         }
-        
+      } catch (error) {
+        console.error('Error opening directions:', error)
+        // Final fallback to coordinate-based directions
+        const directionsUrl = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${nearestLocation.coordinates.lat},${nearestLocation.coordinates.lng}`
+        window.open(directionsUrl, '_blank')
+      }
+    } else if (nearestStore && userLocation) {
+      // Fallback to existing nearestStore logic
+      try {
         const directionsUrl = locationService.generateDirectionsUrl(nearestStore, userLocation)
         window.open(directionsUrl, '_blank')
       } catch (error) {
@@ -317,13 +321,19 @@ const FoodCard: React.FC<FoodCardProps> = ({
           }}
         >
           <span>📍</span>
-          {option.location}
-          {nearestStore && (
+          {option.nearbyLocations && option.nearbyLocations.length > 0 ? (
+            <span style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>
+              {option.nearbyLocations[0].name}
+            </span>
+          ) : (
+            option.location
+          )}
+          {option.nearbyLocations && option.nearbyLocations.length > 0 && (
             <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: '600' }}>
-              ({nearestStore.distanceText || `${nearestStore.distance.toFixed(1)} mi`})
+              ({option.nearbyLocations[0].distanceText})
             </span>
           )}
-          {userLocation && !nearestStore && !isLoadingLocation && (
+          {userLocation && !option.nearbyLocations?.length && !nearestStore && !isLoadingLocation && (
             <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>
               (None nearby)
             </span>
@@ -388,6 +398,8 @@ const FoodCard: React.FC<FoodCardProps> = ({
           >
             {isLoadingLocation ? (
               '⏳ Finding locations...'
+            ) : option.nearbyLocations && option.nearbyLocations.length > 0 ? (
+              `🧭 Directions (${option.nearbyLocations[0].distanceText})`
             ) : nearestStore ? (
               `🧭 Directions (${nearestStore.distanceText || `${nearestStore.distance.toFixed(1)} mi`})`
             ) : userLocation ? (

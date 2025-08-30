@@ -7,11 +7,16 @@
     "build": "vite build",
     "preview": "vite preview"
   },
-  "keywords": ["food", "spider-web", "react"],
+  "keywords": [
+    "food",
+    "spider-web",
+    "react"
+  ],
   "author": "",
   "license": "ISC",
   "description": "A spider web interface for exploring food options",
   "dependencies": {
+    "openai": "^5.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
