@@ -8,6 +8,7 @@ interface FoodCardProps {
   onClick: () => void
   isSelectedForComparison?: boolean
   onComparisonToggle?: (optionId: string) => void
+  onDiscoverClick?: (option: FoodOption) => void
 }
 
 const FoodCard: React.FC<FoodCardProps> = ({ 
@@ -15,7 +16,8 @@ const FoodCard: React.FC<FoodCardProps> = ({
   isHighlighted, 
   onClick, 
   isSelectedForComparison = false,
-  onComparisonToggle
+  onComparisonToggle,
+  onDiscoverClick
 }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
@@ -278,6 +280,36 @@ const FoodCard: React.FC<FoodCardProps> = ({
         >
           {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
         </div>
+
+        {/* Discover Button */}
+        {onDiscoverClick && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDiscoverClick(option)
+            }}
+            style={{
+              background: '#047857',
+              border: '1px solid #065f46',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              width: '100%',
+              marginTop: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#065f46'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#047857'
+            }}
+          >
+            🔍 Discover
+          </button>
+        )}
       </div>
 
     </div>

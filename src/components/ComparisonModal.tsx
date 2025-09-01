@@ -7,13 +7,15 @@ interface ComparisonModalProps {
   onClose: () => void
   selectedOptions: FoodOption[]
   aiRecommendation: string | null
+  onDiscoverClick?: (option: FoodOption) => void
 }
 
 const ComparisonModal: React.FC<ComparisonModalProps> = ({
   isOpen,
   onClose,
   selectedOptions,
-  aiRecommendation
+  aiRecommendation,
+  onDiscoverClick
 }) => {
   const [showNutritionComparison, setShowNutritionComparison] = useState(false)
 
@@ -167,7 +169,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 }}
               >
                 {/* AI Recommendation Badge */}
-                {isRecommended && (
+                {isRecommended ? (
                   <div
                     style={{
                       position: 'absolute',
@@ -186,10 +188,25 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   >
                     🏆 RECOMMENDED
                   </div>
+                ) : (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-10px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 16px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      visibility: 'hidden'
+                    }}
+                  >
+                    🏆 RECOMMENDED
+                  </div>
                 )}
 
                 {/* Food Info */}
-                <div style={{ marginTop: isRecommended ? '20px' : '0' }}>
+                <div style={{ marginTop: isRecommended ? '30px' : '0' }}>
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -220,7 +237,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
-                    gap: '15px'
+                    gap: '15px',
+                    marginTop: '20px'
                   }}>
                     {/* Price */}
                     <div style={{
@@ -296,6 +314,30 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                         </div>
                       </div>
                     )}
+                    
+                    {/* Discover Button */}
+                    <div style={{ gridColumn: '1 / span 2' }}>
+                      <button
+                        onClick={() => onDiscoverClick && onDiscoverClick(option)}
+                        style={{
+                          width: '100%',
+                          background: isRecommended ? '#14b8a6' : '#047857',
+                          border: isRecommended ? '1.5px solid #0f766e' : '1.5px solid #065f46',
+                          color: 'white',
+                          padding: '10px 16px',
+                          borderRadius: '10px',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isRecommended ? '0 2px 8px rgba(20, 184, 166, 0.08)' : '0 2px 8px rgba(4, 120, 87, 0.08)'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = isRecommended ? '#0d9488' : '#065f46' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = isRecommended ? '#14b8a6' : '#047857' }}
+                      >
+                        🔍 Discover
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -199,7 +199,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
               🍔 Finding meals that match your mood...
             </h2>
             <p style={{ color: '#64748b', fontSize: '16px' }}>
-              Our AI is analyzing your craving and searching for the perfect food matches in your area. Hang tight while we curate your personalized food journey!
+              Analyzing your craving and searching for the perfect food matches in your area. Hang tight while we curate your personalized food journey!
             </p>
             
 

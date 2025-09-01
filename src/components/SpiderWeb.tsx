@@ -44,6 +44,8 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   const [selectedNutritionOption, setSelectedNutritionOption] = useState<FoodOption | null>(null)
   const [showRestaurantDiscovery, setShowRestaurantDiscovery] = useState(false)
   const [selectedFoodForDiscovery, setSelectedFoodForDiscovery] = useState<string>('')
+  const [selectedFoodOptionForDiscovery, setSelectedFoodOptionForDiscovery] = useState<FoodOption | null>(null)
+  const [showDiscoveryModal, setShowDiscoveryModal] = useState(false)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   
   // Smart restaurant discovery states
@@ -1113,9 +1115,12 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                option={option}
                isHighlighted={selectedCenter?.id === option.id}
                onClick={() => onCenterChange(option)}
-
                isSelectedForComparison={selectedForComparison.has(option.id)}
                onComparisonToggle={handleComparisonToggle}
+               onDiscoverClick={(option) => {
+                 setSelectedFoodOptionForDiscovery(option)
+                 setShowDiscoveryModal(true)
+               }}
              />
           </div>
         ))}
@@ -1132,6 +1137,10 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         }}
         selectedOptions={foodOptions.filter(option => selectedForComparison.has(option.id))}
         aiRecommendation={aiRecommendation}
+        onDiscoverClick={(option) => {
+          setSelectedFoodOptionForDiscovery(option)
+          setShowDiscoveryModal(true)
+        }}
       />
 
       {/* Recommendation Box Overlay */}
@@ -1279,94 +1288,60 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                       </div>
                       
+                      {/* Reviews and Open Status */}
+                      {option.realRestaurantData && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#64748b',
+                          marginTop: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ color: '#3b82f6' }}>
+                            ⭐ {option.realRestaurantData.rating}/5 ({option.realRestaurantData.totalRatings} reviews)
+                          </div>
+                          {option.realRestaurantData.openNow && (
+                            <div style={{ color: '#10b981' }}>
+                              🟢 Open Now
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       {/* Action Buttons */}
                       <div style={{
                         display: 'flex',
                         gap: '8px',
                         marginTop: '12px',
-                        justifyContent: 'center',
-                        flexWrap: 'wrap'
+                        justifyContent: 'center'
                       }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            openDirectionsToRestaurant(option)
+                            setSelectedFoodOptionForDiscovery(option)
+                            setShowDiscoveryModal(true)
                           }}
                           style={{
-                            background: 'rgba(59, 130, 246, 0.2)',
-                            border: '1px solid rgba(59, 130, 246, 0.4)',
-                            color: '#3b82f6',
+                            background: '#047857',
+                            border: '1px solid #065f46',
+                            color: 'white',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             fontSize: '12px',
                             cursor: 'pointer',
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            width: '100%'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
+                            e.currentTarget.style.background = '#065f46'
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
+                            e.currentTarget.style.background = '#047857'
                           }}
                         >
-                          🗺️ Directions
+                          🔍 Discover
                         </button>
-                        
-                        {/* Website Button - Only show if available */}
-                        {option.realRestaurantData?.website && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(option.realRestaurantData!.website, '_blank')
-                            }}
-                            style={{
-                              background: 'rgba(139, 92, 246, 0.2)',
-                              border: '1px solid rgba(139, 92, 246, 0.4)',
-                              color: '#8b5cf6',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                            }}
-                          >
-                            🌐 Website
-                          </button>
-                        )}
-                        
-                        {/* Call Button - Only show if available */}
-                        {option.realRestaurantData?.phone && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(`tel:${option.realRestaurantData!.phone}`, '_self')
-                            }}
-                            style={{
-                              background: 'rgba(16, 185, 129, 0.2)',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
-                              color: '#10b981',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                            }}
-                          >
-                            📞 Call
-                          </button>
-                        )}
                       </div>
                       
                       {/* Inline Restaurant Results */}
@@ -1681,268 +1656,60 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                    display: 'flex',
                    gap: '8px',
                    marginTop: '12px',
-                   justifyContent: 'center',
-                   flexWrap: 'wrap'
+                   justifyContent: 'center'
                  }}>
                    <button
                      onClick={(e) => {
                        e.stopPropagation()
-                       openDirectionsToRestaurant(currentRecommendations.center)
+                       setSelectedFoodOptionForDiscovery(currentRecommendations.center)
+                       setShowDiscoveryModal(true)
                      }}
                      style={{
-                       background: 'rgba(59, 130, 246, 0.2)',
-                       border: '1px solid rgba(59, 130, 246, 0.4)',
-                       color: '#3b82f6',
-                       padding: '6px 12px',
-                       borderRadius: '8px',
-                       fontSize: '12px',
+                       background: '#14b8a6',
+                       border: '1.5px solid #0f766e',
+                       color: 'white',
+                       padding: '10px 16px',
+                       borderRadius: '10px',
+                       fontSize: '14px',
+                       fontWeight: 'bold',
                        cursor: 'pointer',
-                       transition: 'all 0.2s ease'
+                       transition: 'all 0.2s ease',
+                       width: '100%',
+                       boxShadow: '0 2px 8px rgba(20, 184, 166, 0.08)'
                      }}
                      onMouseEnter={(e) => {
-                       e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
+                       e.currentTarget.style.background = '#0d9488'
                      }}
                      onMouseLeave={(e) => {
-                       e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
+                       e.currentTarget.style.background = '#14b8a6'
                      }}
                    >
-                     🗺️ Directions
+                     🔍 Discover
                    </button>
-                   
-                   {/* Website Button - Only show if available */}
-                   {currentRecommendations.center.realRestaurantData?.website && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation()
-                         window.open(currentRecommendations.center.realRestaurantData!.website, '_blank')
-                       }}
-                       style={{
-                         background: 'rgba(139, 92, 246, 0.2)',
-                         border: '1px solid rgba(139, 92, 246, 0.4)',
-                         color: '#8b5cf6',
-                         padding: '6px 12px',
-                         borderRadius: '8px',
-                         fontSize: '12px',
-                         cursor: 'pointer',
-                         transition: 'all 0.2s ease'
-                       }}
-                       onMouseEnter={(e) => {
-                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                       }}
-                       onMouseLeave={(e) => {
-                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                       }}
-                     >
-                       🌐 Website
-                     </button>
-                   )}
-                   
-                   {/* Call Button - Only show if available */}
-                   {currentRecommendations.center.realRestaurantData?.phone && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation()
-                         window.open(`tel:${currentRecommendations.center.realRestaurantData!.phone}`, '_self')
-                       }}
-                       style={{
-                         background: 'rgba(16, 185, 129, 0.2)',
-                         border: '1px solid rgba(16, 185, 129, 0.4)',
-                         color: '#10b981',
-                         padding: '6px 12px',
-                         borderRadius: '8px',
-                         fontSize: '12px',
-                         cursor: 'pointer',
-                         transition: 'all 0.2s ease'
-                       }}
-                       onMouseEnter={(e) => {
-                         e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
-                       }}
-                       onMouseLeave={(e) => {
-                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                       }}
-                     >
-                       📞 Call
-                     </button>
-                   )}
                  </div>
-                 
-                 {/* Inline Restaurant Results for Current Choice */}
-                 {showRestaurantResults.has(currentRecommendations.center.name) && restaurantResults.has(currentRecommendations.center.name) && (
-                   <div style={{
-                     marginTop: '16px',
-                     background: 'rgba(255, 255, 255, 0.95)',
-                     border: '2px solid #e8e6e0',
-                     borderRadius: '12px',
-                     padding: '16px',
-                     maxHeight: '350px',
-                     overflow: 'auto'
-                   }}>
-                     <h4 style={{
-                       margin: '0 0 12px 0',
-                       fontSize: '16px',
-                       fontWeight: '600',
-                       color: '#1e293b',
-                       textAlign: 'center'
-                     }}>
-                       🍽️ Restaurants serving {currentRecommendations.center.name}
-                     </h4>
-                     
-                     {restaurantResults.get(currentRecommendations.center.name)?.restaurants.map((restaurant, idx) => (
-                       <div
-                         key={restaurant.id}
-                         style={{
-                           background: 'rgba(254, 243, 199, 0.6)',
-                           border: '1px solid #fde68a',
-                           borderRadius: '8px',
-                           padding: '12px',
-                           marginBottom: idx < (restaurantResults.get(currentRecommendations.center.name)?.restaurants.length || 0) - 1 ? '8px' : '0',
-                           fontSize: '13px'
-                         }}
-                       >
-                         <div style={{
-                           display: 'flex',
-                           justifyContent: 'space-between',
-                           alignItems: 'flex-start',
-                           marginBottom: '6px'
-                         }}>
-                           <div style={{ flex: 1 }}>
-                             <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>
-                               {restaurant.name}
-                             </div>
-                             <div style={{ color: '#64748b', fontSize: '12px' }}>
-                               📍 {restaurant.address}
-                             </div>
-                           </div>
-                           <div style={{
-                             background: restaurant.confidence > 80 ? '#10b981' : '#f59e0b',
-                             color: 'white',
-                             padding: '3px 8px',
-                             borderRadius: '6px',
-                             fontSize: '11px',
-                             fontWeight: '600'
-                           }}>
-                             {restaurant.confidence}%
-                           </div>
-                         </div>
-                         
-                         <div style={{
-                           display: 'flex',
-                           alignItems: 'center',
-                           gap: '10px',
-                           marginBottom: '8px',
-                           fontSize: '12px'
-                         }}>
-                           <span style={{ color: '#f97316' }}>⭐ {restaurant.rating}</span>
-                           <span style={{ color: '#10b981' }}>💰 {['$', '$$', '$$$', '$$$$'][restaurant.priceLevel - 1] || 'N/A'}</span>
-                           <span style={{ color: '#3b82f6' }}>
-                             📏 {restaurant.distance < 1 ? `${Math.round(restaurant.distance * 1000)}m` : `${restaurant.distance.toFixed(1)}km`}
-                           </span>
-                           {restaurant.openNow && (
-                             <span style={{ color: '#059669' }}>🟢 Open</span>
-                           )}
-                         </div>
-                         
-                         <div style={{
-                           display: 'flex',
-                           gap: '8px',
-                           flexWrap: 'wrap'
-                         }}>
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation()
-                               window.open(`https://www.google.com/maps/dir/?api=1&destination=place_id:${restaurant.place_id}`, '_blank')
-                             }}
-                             style={{
-                               background: 'rgba(59, 130, 246, 0.2)',
-                               border: '1px solid rgba(59, 130, 246, 0.4)',
-                               color: '#3b82f6',
-                               padding: '6px 10px',
-                               borderRadius: '6px',
-                               fontSize: '11px',
-                               cursor: 'pointer',
-                               fontWeight: '500'
-                             }}
-                           >
-                             🗺️ Directions
-                           </button>
-                           
-                           {restaurant.website && (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation()
-                                 window.open(restaurant.website, '_blank')
-                               }}
-                               style={{
-                                 background: 'rgba(139, 92, 246, 0.2)',
-                                 border: '1px solid rgba(139, 92, 246, 0.4)',
-                                 color: '#8b5cf6',
-                                 padding: '6px 10px',
-                                 borderRadius: '6px',
-                                 fontSize: '11px',
-                                 cursor: 'pointer',
-                                 fontWeight: '500'
-                               }}
-                             >
-                               🌐 Website
-                             </button>
-                           )}
-                           
-                           {restaurant.phone && (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation()
-                                 window.open(`tel:${restaurant.phone}`, '_self')
-                               }}
-                               style={{
-                                 background: 'rgba(16, 185, 129, 0.2)',
-                                 border: '1px solid rgba(16, 185, 129, 0.4)',
-                                 color: '#10b981',
-                                 padding: '6px 10px',
-                                 borderRadius: '6px',
-                                 fontSize: '11px',
-                                 cursor: 'pointer',
-                                 fontWeight: '500'
-                               }}
-                             >
-                               📞 Call
-                             </button>
-                           )}
-                         </div>
-                       </div>
-                     )) || []}
-                     
-                     {restaurantResults.get(currentRecommendations.center.name)?.restaurants.length === 0 && (
-                       <div style={{
-                         textAlign: 'center',
-                         color: '#64748b',
+                 {/* Show review snippets if available */}
+                 {currentRecommendations.center.realRestaurantData?.reviews && currentRecommendations.center.realRestaurantData.reviews.length > 0 && (
+                   <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                     <div style={{ fontWeight: 600, color: '#374151', fontSize: '14px', marginBottom: '4px' }}>Recent Reviews:</div>
+                     {currentRecommendations.center.realRestaurantData.reviews.slice(0, 3).map((review, idx) => (
+                       <div key={idx} style={{
+                         background: 'rgba(254, 243, 199, 0.7)',
+                         border: '1px solid #fde68a',
+                         borderRadius: '8px',
+                         padding: '10px',
                          fontSize: '13px',
-                         padding: '16px'
+                         color: '#92400e',
+                         boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
                        }}>
-                         No restaurants found for {currentRecommendations.center.name}
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                           <span style={{ fontWeight: 600 }}>{review.author_name}</span>
+                           <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(review.rating)}</span>
+                         </div>
+                         <div style={{ fontStyle: 'italic', color: '#92400e' }}>
+                           "{review.text}"
+                         </div>
                        </div>
-                     )}
-                   </div>
-                 )}
-                 
-                 {/* Loading State for Current Choice */}
-                 {loadingRestaurants.has(currentRecommendations.center.name) && (
-                   <div style={{
-                     marginTop: '16px',
-                     textAlign: 'center',
-                     padding: '16px'
-                   }}>
-                     <div style={{
-                       width: '24px',
-                       height: '24px',
-                       border: '3px solid rgba(139, 92, 246, 0.3)',
-                       borderTop: '3px solid #8b5cf6',
-                       borderRadius: '50%',
-                       animation: 'spin 1s linear infinite',
-                       margin: '0 auto 8px'
-                     }} />
-                     <div style={{ color: '#64748b', fontSize: '12px' }}>
-                       🔍 Finding restaurants...
-                     </div>
+                     ))}
                    </div>
                  )}
                </div>
@@ -2035,94 +1802,60 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                       </div>
                       
+                      {/* Reviews and Open Status */}
+                      {option.realRestaurantData && (
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#64748b',
+                          marginTop: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ color: '#3b82f6' }}>
+                            ⭐ {option.realRestaurantData.rating}/5 ({option.realRestaurantData.totalRatings} reviews)
+                          </div>
+                          {option.realRestaurantData.openNow && (
+                            <div style={{ color: '#10b981' }}>
+                              🟢 Open Now
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       {/* Action Buttons */}
                       <div style={{
                         display: 'flex',
                         gap: '8px',
                         marginTop: '12px',
-                        justifyContent: 'center',
-                        flexWrap: 'wrap'
+                        justifyContent: 'center'
                       }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            openDirectionsToRestaurant(option)
+                            setSelectedFoodOptionForDiscovery(option)
+                            setShowDiscoveryModal(true)
                           }}
                           style={{
-                            background: 'rgba(59, 130, 246, 0.2)',
-                            border: '1px solid rgba(59, 130, 246, 0.4)',
-                            color: '#3b82f6',
+                            background: '#047857',
+                            border: '1px solid #065f46',
+                            color: 'white',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             fontSize: '12px',
                             cursor: 'pointer',
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            width: '100%'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
+                            e.currentTarget.style.background = '#065f46'
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
+                            e.currentTarget.style.background = '#047857'
                           }}
                         >
-                          🗺️ Directions
+                          🔍 Discover
                         </button>
-                        
-                        {/* Website Button - Only show if available */}
-                        {option.realRestaurantData?.website && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(option.realRestaurantData!.website, '_blank')
-                            }}
-                            style={{
-                              background: 'rgba(139, 92, 246, 0.2)',
-                              border: '1px solid rgba(139, 92, 246, 0.4)',
-                              color: '#8b5cf6',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                            }}
-                          >
-                            🌐 Website
-                          </button>
-                        )}
-                        
-                        {/* Call Button - Only show if available */}
-                        {option.realRestaurantData?.phone && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              window.open(`tel:${option.realRestaurantData!.phone}`, '_self')
-                            }}
-                            style={{
-                              background: 'rgba(16, 185, 129, 0.2)',
-                              border: '1px solid rgba(16, 185, 129, 0.4)',
-                              color: '#10b981',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                            }}
-                          >
-                            📞 Call
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -2180,6 +1913,293 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
             setSelectedFoodForDiscovery('')
           }}
         />
+      )}
+
+      {/* Discovery Modal */}
+      {showDiscoveryModal && selectedFoodOptionForDiscovery && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'rgba(253, 246, 227, 0.98)',
+          border: '3px solid #e8e6e0',
+          borderRadius: '24px',
+          padding: '32px',
+          zIndex: 2000,
+          minWidth: '500px',
+          maxHeight: '80vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
+        }}>
+          {/* Close Button */}
+          <button
+            onClick={() => setShowDiscoveryModal(false)}
+            style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: '2px solid #e8e6e0',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              color: '#1e293b',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 'bold'
+            }}
+          >
+            ×
+          </button>
+
+          {/* Header */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '24px',
+            paddingRight: '40px'
+          }}>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#1e293b',
+              margin: '0 0 8px 0'
+            }}>
+              🔍 Discover {selectedFoodOptionForDiscovery.name}
+            </h2>
+            <div style={{
+              fontSize: '16px',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              justifyContent: 'center'
+            }}>
+              <span>📍</span>
+              {selectedFoodOptionForDiscovery.location}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            {/* Basic Info */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.8)',
+              border: '2px solid #e8e6e0',
+              borderRadius: '16px',
+              padding: '20px'
+            }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#1e293b',
+                margin: '0 0 16px 0'
+              }}>
+                📋 Basic Information
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '16px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                    Price Level
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#f59e0b' }}>
+                    {selectedFoodOptionForDiscovery.priceLevel ? ['$', '$$', '$$$', '$$$$'][selectedFoodOptionForDiscovery.priceLevel - 1] : '$'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                    Category
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: '600', color: '#10b981' }}>
+                    {selectedFoodOptionForDiscovery.category}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => {
+                  const destination = selectedFoodOptionForDiscovery.realRestaurantData ? 
+                    selectedFoodOptionForDiscovery.realRestaurantData.address : 
+                    `${selectedFoodOptionForDiscovery.name} ${selectedFoodOptionForDiscovery.restaurantType || selectedFoodOptionForDiscovery.location}`
+                  window.open(`https://www.google.com/maps/dir//${encodeURIComponent(destination)}`, '_blank')
+                }}
+                style={{
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#3b82f6',
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  fontWeight: '600'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
+                }}
+              >
+                🗺️ Get Directions
+              </button>
+
+              {selectedFoodOptionForDiscovery.realRestaurantData?.website && (
+                <button
+                  onClick={() => window.open(selectedFoodOptionForDiscovery.realRestaurantData!.website, '_blank')}
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#8b5cf6',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: '600'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                  }}
+                >
+                  🌐 Visit Website
+                </button>
+              )}
+
+              {selectedFoodOptionForDiscovery.realRestaurantData?.phone && (
+                <button
+                  onClick={() => window.open(`tel:${selectedFoodOptionForDiscovery.realRestaurantData!.phone}`, '_self')}
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    color: '#10b981',
+                    padding: '10px 16px',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: '600'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                  }}
+                >
+                  📞 Call Restaurant
+                </button>
+              )}
+            </div>
+
+            {/* Additional Info */}
+            {selectedFoodOptionForDiscovery.realRestaurantData && (
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.8)',
+                border: '2px solid #e8e6e0',
+                borderRadius: '16px',
+                padding: '20px'
+              }}>
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#1e293b',
+                  margin: '0 0 16px 0'
+                }}>
+                  🏪 Restaurant Details
+                </h3>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  {selectedFoodOptionForDiscovery.realRestaurantData.address && (
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                        📍 Address
+                      </div>
+                      <div style={{ fontSize: '16px', color: '#1e293b' }}>
+                        {selectedFoodOptionForDiscovery.realRestaurantData.address}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFoodOptionForDiscovery.realRestaurantData.rating && (
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                        ⭐ Rating
+                      </div>
+                      <div style={{ fontSize: '16px', color: '#1e293b' }}>
+                        {selectedFoodOptionForDiscovery.realRestaurantData.rating}/5 ({selectedFoodOptionForDiscovery.realRestaurantData.totalRatings} reviews)
+                      </div>
+                    </div>
+                  )}
+                  {selectedFoodOptionForDiscovery.realRestaurantData.openNow !== undefined && (
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                        🕒 Status
+                      </div>
+                      <div style={{ 
+                        fontSize: '16px', 
+                        color: selectedFoodOptionForDiscovery.realRestaurantData.openNow ? '#10b981' : '#ef4444',
+                        fontWeight: '600'
+                      }}>
+                        {selectedFoodOptionForDiscovery.realRestaurantData.openNow ? '🟢 Open Now' : '🔴 Closed'}
+                      </div>
+                    </div>
+                  )}
+                  {selectedFoodOptionForDiscovery.realRestaurantData.reviews && selectedFoodOptionForDiscovery.realRestaurantData.reviews.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+                        📝 Recent Reviews
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedFoodOptionForDiscovery.realRestaurantData.reviews.slice(0, 3).map((review, idx) => (
+                          <div key={idx} style={{
+                            background: 'rgba(254, 243, 199, 0.6)',
+                            border: '1px solid #fde68a',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            fontSize: '13px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <span style={{ fontWeight: 600, color: '#92400e' }}>{review.author_name}</span>
+                              <span style={{ color: '#f59e0b' }}>{'⭐'.repeat(review.rating)}</span>
+                            </div>
+                            <div style={{ color: '#92400e', lineHeight: '1.4', fontStyle: 'italic' }}>
+                              "{review.text}"
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
     </div>
