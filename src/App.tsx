@@ -47,11 +47,13 @@ function App() {
       } else {
         // If no foods returned, show error and don't proceed
         console.error('Food Chain returned no food options')
-        alert(`I can't think of any recommendations that suit your taste for "${query}". Please try a different craving.`)
+        // Instead of alert, we'll throw an error that SearchInput can catch
+        throw new Error(`I can't think of any recommendations that suit your taste for "${query}". Please try a different craving.`)
       }
     } catch (error) {
       console.error('Error in handleSearch:', error)
-      alert('An error occurred while processing your request. Please try again.')
+      // Re-throw the error so SearchInput can display it
+      throw error
     } finally {
       // Keep loading for a bit longer to show the transition
       setTimeout(() => {
@@ -69,7 +71,13 @@ function App() {
 
   return (
     <LocationPermissionGate>
-      <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
+      <div style={{ 
+        height: '100vh', 
+        width: '100vw', 
+        position: 'relative',
+        background: 'linear-gradient(135deg, #fdf6e3 0%, #f5e6d3 100%)',
+        overflow: 'hidden'
+      }}>
         {!hasSearched ? (
           <SearchInput 
             onSearch={handleSearch} 

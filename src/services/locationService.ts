@@ -366,7 +366,7 @@ export class FoodInfoService {
     return `https://www.google.com/search?q=${infoQuery}`
   }
 
-  static getHealthScore(foodName: string, type: string): {
+  static getHealthScore(foodName: string): {
     score: number
     category: 'Healthy' | 'Moderate' | 'Indulgent'
     reason: string
@@ -377,11 +377,7 @@ export class FoodInfoService {
     let score = 50 // Base score out of 100
     
     // Type-based scoring
-    if (type === 'Make') {
-      score += 20 // Home cooking is generally healthier
-    } else if (type === 'Premade') {
-      score += 10 // Store-bought can be controlled
-    }
+    
     
     // Ingredient-based scoring
     if (name.includes('salad') || name.includes('veggie') || name.includes('turkey')) {

@@ -3,7 +3,7 @@ export interface FoodOption {
   name: string
   location: string
   price: number
-  type: 'Make' | 'Premade' | 'Prepared'
+
   category: 'Budget' | 'Mid-Range' | 'Premium'
   description?: string
   imageUrl?: string | null
@@ -39,4 +39,10 @@ export interface WebNode {
   position: Position
   foodOption?: FoodOption
   isCenter?: boolean
+}
+
+export interface FoodChainResult {
+  foods: FoodOption[]
+  reasoning: string
+  nearbyLocations: NearbyLocation[]
 }

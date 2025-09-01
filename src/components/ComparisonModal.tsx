@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { FoodOption } from '../types'
+import NutritionComparisonModal from './NutritionComparisonModal'
 
 interface ComparisonModalProps {
   isOpen: boolean
@@ -14,6 +15,25 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
   selectedOptions,
   aiRecommendation
 }) => {
+  const [showNutritionComparison, setShowNutritionComparison] = useState(false)
+
+  // Disable scrolling and dragging when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Disable body scrolling
+      document.body.style.overflow = 'hidden'
+      document.body.style.userSelect = 'none'
+      document.body.style.webkitUserSelect = 'none'
+      
+      return () => {
+        // Re-enable body scrolling when modal closes
+        document.body.style.overflow = ''
+        document.body.style.userSelect = ''
+        document.body.style.webkitUserSelect = ''
+      }
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const getCategoryColor = (category: string) => {
@@ -25,14 +45,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }
   }
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Make': return '🍳'
-      case 'Premade': return '📦'
-      case 'Prepared': return '🍽️'
-      default: return '🍔'
-    }
-  }
+
 
   return (
     <div
@@ -42,7 +55,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         left: 0,
         width: '100vw',
         height: '100vh',
-        background: 'rgba(0, 0, 0, 0.8)',
+        background: 'rgba(253, 246, 227, 0.3)',
         backdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'center',
@@ -54,17 +67,18 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
     >
       <div
         style={{
-          background: 'rgba(20, 20, 20, 0.95)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '20px',
+          background: 'rgba(253, 246, 227, 0.98)',
+          border: '3px solid #e8e6e0',
+          borderRadius: '24px',
           padding: '30px',
-          maxWidth: '1000px',
-          maxHeight: '80vh',
-          overflow: 'auto',
+          maxWidth: '1200px',
+          minHeight: '900px',
           backdropFilter: 'blur(20px)',
-          position: 'relative'
+          position: 'relative',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
         }}
         onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
@@ -73,26 +87,29 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             position: 'absolute',
             top: '15px',
             right: '15px',
-            width: '30px',
-            height: '30px',
+            width: '32px',
+            height: '32px',
             borderRadius: '50%',
-            border: 'none',
-            background: 'rgba(239, 68, 68, 0.8)',
-            color: 'white',
+            border: '2px solid #e8e6e0',
+            background: 'rgba(255, 255, 255, 0.95)',
+            color: '#1e293b',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '18px',
-            fontWeight: 'bold',
-            transition: 'all 0.2s ease'
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 1)'
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'
+            e.currentTarget.style.color = 'white'
             e.currentTarget.style.transform = 'scale(1.1)'
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.8)'
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)'
+            e.currentTarget.style.color = '#1e293b'
             e.currentTarget.style.transform = 'scale(1)'
           }}
         >
@@ -102,17 +119,19 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
         {/* Header */}
         <div style={{ marginBottom: '30px', textAlign: 'center' }}>
           <h2 style={{
-            color: 'white',
+            color: '#1e293b',
             fontSize: '28px',
             fontWeight: '700',
-            margin: '0 0 10px 0'
+            margin: '0 0 10px 0',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
           }}>
             ⚖️ Food Comparison
           </h2>
           <p style={{
-            color: 'rgba(255, 255, 255, 0.7)',
+            color: '#475569',
             fontSize: '16px',
-            margin: 0
+            margin: 0,
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
           }}>
             AI analyzed nutrition and cost to find your best option
           </p>
@@ -135,15 +154,16 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                 key={option.id}
                 style={{
                   background: isRecommended 
-                    ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 193, 7, 0.1) 100%)'
-                    : 'rgba(255, 255, 255, 0.05)',
+                    ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%)'
+                    : 'rgba(255, 255, 255, 0.95)',
                   border: isRecommended 
-                    ? '3px solid #ffd700'
-                    : '2px solid rgba(255, 255, 255, 0.2)',
+                    ? '3px solid #f59e0b'
+                    : '2px solid #e8e6e0',
                   borderRadius: '16px',
                   padding: '20px',
                   position: 'relative',
-                  transition: 'all 0.3s ease'
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 {/* AI Recommendation Badge */}
@@ -154,13 +174,14 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       top: '-10px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      background: 'linear-gradient(135deg, #ffd700 0%, #ffb300 100%)',
-                      color: '#000',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: 'white',
                       padding: '6px 16px',
                       borderRadius: '20px',
                       fontSize: '12px',
                       fontWeight: '700',
-                      boxShadow: '0 4px 15px rgba(255, 215, 0, 0.4)'
+                      boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                     }}
                   >
                     🏆 AI RECOMMENDED
@@ -175,19 +196,20 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                     gap: '10px',
                     marginBottom: '12px'
                   }}>
-                    <span style={{ fontSize: '24px' }}>{getTypeIcon(option.type)}</span>
+                    <span style={{ fontSize: '24px' }}>🍔</span>
                     <h3 style={{
-                      color: isRecommended ? '#ffd700' : 'white',
+                      color: isRecommended ? '#f59e0b' : '#1e293b',
                       fontSize: '18px',
                       fontWeight: '600',
-                      margin: 0
+                      margin: 0,
+                      textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                     }}>
                       {option.name}
                     </h3>
                   </div>
 
                   <div style={{
-                    color: 'rgba(255, 255, 255, 0.8)',
+                    color: '#64748b',
                     fontSize: '14px',
                     marginBottom: '15px'
                   }}>
@@ -202,40 +224,43 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   }}>
                     {/* Price */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.8)',
                       borderRadius: '8px',
                       padding: '12px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      border: '1px solid #e2e8f0'
                     }}>
                       <div style={{ color: '#10b981', fontSize: '20px', fontWeight: '700' }}>
                         ${option.price}
                       </div>
-                      <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>
                         Price
                       </div>
                     </div>
 
                     {/* Type */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.8)',
                       borderRadius: '8px',
                       padding: '12px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      border: '1px solid #e2e8f0'
                     }}>
                       <div style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600' }}>
                         {option.type}
                       </div>
-                      <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>
                         Type
                       </div>
                     </div>
 
                     {/* Category */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.8)',
                       borderRadius: '8px',
                       padding: '12px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      border: '1px solid #e2e8f0'
                     }}>
                       <div style={{ 
                         color: getCategoryColor(option.category), 
@@ -244,22 +269,23 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       }}>
                         {option.category}
                       </div>
-                      <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>
                         Category
                       </div>
                     </div>
 
                     {/* Health Score */}
                     <div style={{
-                      background: 'rgba(255, 255, 255, 0.1)',
+                      background: 'rgba(255, 255, 255, 0.8)',
                       borderRadius: '8px',
                       padding: '12px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      border: '1px solid #e2e8f0'
                     }}>
-                      <div style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600' }}>
-                        {option.type === 'Make' ? '85%' : option.type === 'Premade' ? '70%' : '60%'}
-                      </div>
-                      <div style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '11px' }}>
+                                              <div style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600' }}>
+                          70%
+                        </div>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>
                         Health Score
                       </div>
                     </div>
@@ -270,36 +296,81 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
           })}
         </div>
 
+        {/* Nutrition Comparison Button */}
+        <div style={{
+          textAlign: 'center',
+          marginBottom: '30px'
+        }}>
+          <button
+            onClick={() => setShowNutritionComparison(true)}
+            style={{
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '16px 24px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              margin: '0 auto'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(34, 197, 94, 0.3)'
+            }}
+          >
+            🍎 Nutrition Comparison
+          </button>
+        </div>
+
         {/* AI Analysis Summary */}
         {aiRecommendation && (
           <div style={{
             background: 'rgba(255, 215, 0, 0.1)',
-            border: '1px solid rgba(255, 215, 0, 0.3)',
-            borderRadius: '12px',
+            border: '2px solid #f59e0b',
+            borderRadius: '16px',
             padding: '20px',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.1)'
           }}>
             <h3 style={{
-              color: '#ffd700',
+              color: '#f59e0b',
               fontSize: '18px',
               fontWeight: '600',
-              margin: '0 0 10px 0'
+              margin: '0 0 10px 0',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
             }}>
               🤖 AI Analysis
             </h3>
             <p style={{
-              color: 'rgba(255, 255, 255, 0.8)',
+              color: '#475569',
               fontSize: '14px',
               margin: 0,
               lineHeight: '1.5'
             }}>
               Based on nutrition quality, cost-effectiveness, and preparation type, 
-              <strong style={{ color: '#ffd700' }}> {selectedOptions.find(o => o.id === aiRecommendation)?.name}</strong> 
+              <strong style={{ color: '#f59e0b' }}> {selectedOptions.find(o => o.id === aiRecommendation)?.name}</strong> 
               {' '}offers the best overall value. It provides optimal balance of health benefits, 
               affordability, and convenience for your needs.
             </p>
           </div>
         )}
+
+        {/* Nutrition Comparison Modal */}
+        <NutritionComparisonModal
+          isOpen={showNutritionComparison}
+          onClose={() => setShowNutritionComparison(false)}
+          foodOptions={selectedOptions}
+        />
       </div>
     </div>
   )

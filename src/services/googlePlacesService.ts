@@ -17,6 +17,31 @@ export interface PlaceResult {
   distance?: number
 }
 
+export interface RestaurantResult {
+  place_id: string
+  name: string
+  address: string
+  location: {
+    lat: number
+    lng: number
+  }
+  rating: number
+  totalRatings: number
+  priceLevel: number
+  businessStatus: string
+  openNow: boolean
+  distance: number
+  reviews: Array<{
+    author_name: string
+    rating: number
+    text: string
+  }>
+  photos: any[]
+  website: string
+  phone: string
+  types: string[]
+}
+
 export interface NearbySearchRequest {
   location: { lat: number; lng: number }
   radius: number
@@ -94,6 +119,162 @@ export class GooglePlacesService {
       console.error('Error with Google Places API:', error)
       return this.getFallbackResults(request)
     }
+  }
+
+  // Enhanced restaurant discovery - filters for restaurants/food chains, avoids grocery stores
+  async searchRestaurants(foodName: string, userLocation: { lat: number; lng: number }): Promise<RestaurantResult[]> {
+    if (!this.isAvailable()) {
+      console.log('Google Places API not available, using fallback')
+      return this.getFallbackRestaurantResults(foodName, userLocation)
+    }
+
+    try {
+      const service = new (window as any).google.maps.places.PlacesService(
+        document.createElement('div')
+      )
+
+      // Search for restaurants with the specific food
+      const searchRequest = {
+        location: new (window as any).google.maps.LatLng(userLocation.lat, userLocation.lng),
+        radius: 5000, // 5km radius
+        keyword: `${foodName} restaurant`,
+        type: 'restaurant' // Focus on restaurants, not grocery stores
+      }
+
+      return new Promise((resolve, reject) => {
+        service.nearbySearch(searchRequest, async (results: any[], status: any) => {
+          if (status === (window as any).google.maps.places.PlacesServiceStatus.OK) {
+            // Filter and enhance results with reviews
+            const restaurants = await Promise.all(
+              results.slice(0, 8).map(async (place) => {
+                // Get detailed place info including reviews
+                const details = await this.getPlaceDetails(place.place_id)
+                
+                return {
+                  place_id: place.place_id,
+                  name: place.name,
+                  address: place.vicinity || place.formatted_address,
+                  location: {
+                    lat: place.geometry.location.lat(),
+                    lng: place.geometry.location.lng()
+                  },
+                  rating: place.rating || 0,
+                  totalRatings: place.user_ratings_total || 0,
+                  priceLevel: place.price_level || 0,
+                  businessStatus: place.business_status,
+                  openNow: place.opening_hours?.open_now || false,
+                  distance: this.calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    place.geometry.location.lat(),
+                    place.geometry.location.lng()
+                  ),
+                  reviews: details.reviews || [],
+                  photos: details.photos || [],
+                  website: details.website || '',
+                  phone: details.phone || '',
+                  types: place.types || []
+                }
+              })
+            )
+
+            // Filter out grocery stores, focus on restaurants/food chains
+            const filteredRestaurants = restaurants.filter(restaurant => {
+              const types = restaurant.types.map(t => t.toLowerCase())
+              const isRestaurant = types.some(type => 
+                type.includes('restaurant') || 
+                type.includes('food') || 
+                type.includes('cafe') || 
+                type.includes('bar') ||
+                type.includes('pizzeria') ||
+                type.includes('bakery') ||
+                type.includes('diner')
+              )
+              
+              const isNotGrocery = !types.some(type => 
+                type.includes('grocery') || 
+                type.includes('supermarket') || 
+                type.includes('convenience_store') ||
+                type.includes('department_store')
+              )
+
+              return isRestaurant && isNotGrocery
+            })
+
+            resolve(filteredRestaurants)
+          } else {
+            console.error('Restaurant search failed:', status)
+            resolve(this.getFallbackRestaurantResults(foodName, userLocation))
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error with restaurant search:', error)
+      return this.getFallbackRestaurantResults(foodName, userLocation)
+    }
+  }
+
+  // Get detailed place information including reviews
+  private async getPlaceDetails(placeId: string): Promise<any> {
+    if (!this.isAvailable()) {
+      return { reviews: [], photos: [], website: '', phone: '' }
+    }
+
+    try {
+      const service = new (window as any).google.maps.places.PlacesService(
+        document.createElement('div')
+      )
+
+      return new Promise((resolve) => {
+        const request = {
+          placeId: placeId,
+          fields: ['reviews', 'photos', 'website', 'formatted_phone_number']
+        }
+
+        service.getDetails(request, (place: any, status: any) => {
+          if (status === (window as any).google.maps.places.PlacesServiceStatus.OK) {
+            resolve({
+              reviews: place.reviews?.slice(0, 3) || [], // Get top 3 reviews
+              photos: place.photos?.slice(0, 2) || [], // Get top 2 photos
+              website: place.website || '',
+              phone: place.formatted_phone_number || ''
+            })
+          } else {
+            resolve({ reviews: [], photos: [], website: '', phone: '' })
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error getting place details:', error)
+      return { reviews: [], photos: [], website: '', phone: '' }
+    }
+  }
+
+  // Fallback restaurant results
+  private async getFallbackRestaurantResults(foodName: string, userLocation: { lat: number; lng: number }): Promise<RestaurantResult[]> {
+    // Return sample restaurant data when API is not available
+    return [
+      {
+        place_id: 'fallback_1',
+        name: `${foodName} Restaurant`,
+        address: 'Sample Address',
+        location: { lat: userLocation.lat + 0.001, lng: userLocation.lng + 0.001 },
+        rating: 4.2,
+        totalRatings: 150,
+        priceLevel: 2,
+        businessStatus: 'OPERATIONAL',
+        openNow: true,
+        distance: 0.5,
+        reviews: [
+          { author_name: 'John D.', rating: 5, text: 'Great food and service!' },
+          { author_name: 'Sarah M.', rating: 4, text: 'Really enjoyed the food here.' }
+        ],
+        photos: [],
+        website: '',
+        phone: '',
+        types: ['restaurant']
+      }
+    ]
   }
 
   // Fallback method using alternative APIs or manual data

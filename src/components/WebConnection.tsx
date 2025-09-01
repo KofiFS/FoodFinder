@@ -51,13 +51,13 @@ const WebConnection: React.FC<WebConnectionProps> = ({
         y1={startPx.y}
         x2={endPx.x}
         y2={endPx.y}
-        stroke={isActive ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)'}
-        strokeWidth={isActive ? '3' : '2'}
+        stroke={isActive ? '#0f766e' : '#0d9488'}
+        strokeWidth={isActive ? '4' : '3'}
         strokeDasharray={isActive ? 'none' : '5,5'}
         style={{
           filter: isActive 
-            ? 'drop-shadow(0 0 10px rgba(255,255,255,0.5))' 
-            : 'drop-shadow(0 0 5px rgba(255,255,255,0.2))',
+            ? 'drop-shadow(0 0 10px rgba(15, 118, 110, 0.4))' 
+            : 'drop-shadow(0 0 5px rgba(13, 148, 136, 0.3))',
           transition: 'all 0.4s ease'
         }}
       />
@@ -67,9 +67,9 @@ const WebConnection: React.FC<WebConnectionProps> = ({
         cx={startPx.x}
         cy={startPx.y}
         r={isActive ? '8' : '5'}
-        fill={isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)'}
+        fill={isActive ? '#0f766e' : '#0d9488'}
         style={{
-          filter: 'drop-shadow(0 0 8px rgba(255,255,255,0.6))',
+          filter: 'drop-shadow(0 0 8px rgba(15, 118, 110, 0.5))',
           transition: 'all 0.4s ease'
         }}
       />
@@ -79,9 +79,9 @@ const WebConnection: React.FC<WebConnectionProps> = ({
         cx={endPx.x}
         cy={endPx.y}
         r={isActive ? '6' : '4'}
-        fill={isActive ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)'}
+        fill={isActive ? '#0f766e' : '#0d9488'}
         style={{
-          filter: 'drop-shadow(0 0 6px rgba(255,255,255,0.6))',
+          filter: 'drop-shadow(0 0 6px rgba(15, 118, 110, 0.5))',
           transition: 'all 0.4s ease'
         }}
       />
@@ -95,11 +95,11 @@ const WebConnection: React.FC<WebConnectionProps> = ({
             cx={startPx.x}
             cy={startPx.y}
             r={isActive ? '4' : '2'}
-            fill={isActive ? 'rgba(74, 222, 128, 0.9)' : 'rgba(255,255,255,0.6)'}
+            fill={isActive ? '#059669' : '#0d9488'}
             style={{
               filter: isActive 
-                ? 'drop-shadow(0 0 8px rgba(74, 222, 128, 0.8))' 
-                : 'drop-shadow(0 0 4px rgba(255,255,255,0.6))',
+                ? 'drop-shadow(0 0 8px rgba(5, 150, 105, 0.6))' 
+                : 'drop-shadow(0 0 4px rgba(13, 148, 136, 0.4))',
               transformOrigin: `${startPx.x}px ${startPx.y}px`,
               animation: `travelLine-${uniqueId} ${isActive ? '2s' : '4s'} ease-in-out infinite ${i * 0.67}s`
             }}
@@ -138,7 +138,7 @@ const WebConnection: React.FC<WebConnectionProps> = ({
             cy={startPx.y}
             r="12"
             fill="none"
-            stroke="rgba(255,255,255,0.4)"
+            stroke="#0f766e"
             strokeWidth="2"
             style={{
               animation: 'pulse 2s ease-in-out infinite'
@@ -149,7 +149,7 @@ const WebConnection: React.FC<WebConnectionProps> = ({
             cy={endPx.y}
             r="10"
             fill="none"
-            stroke="rgba(255,255,255,0.4)"
+            stroke="#0f766e"
             strokeWidth="2"
             style={{
               animation: 'pulse 2s ease-in-out infinite 0.5s'

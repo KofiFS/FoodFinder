@@ -6,7 +6,6 @@ interface FoodCardProps {
   option: FoodOption
   isHighlighted: boolean
   onClick: () => void
-  onShowNutrition?: (foodName: string, restaurantName: string) => void
   isSelectedForComparison?: boolean
   onComparisonToggle?: (optionId: string) => void
 }
@@ -15,7 +14,6 @@ const FoodCard: React.FC<FoodCardProps> = ({
   option, 
   isHighlighted, 
   onClick, 
-  onShowNutrition,
   isSelectedForComparison = false,
   onComparisonToggle
 }) => {
@@ -78,8 +76,8 @@ const FoodCard: React.FC<FoodCardProps> = ({
     const baseScore = 50
     let score = baseScore
     
-    if (option.type === 'Make') score += 20
-    else if (option.type === 'Premade') score += 10
+    
+
     
     const name = option.name.toLowerCase()
     if (name.includes('salad') || name.includes('grilled')) score += 20
@@ -90,17 +88,10 @@ const FoodCard: React.FC<FoodCardProps> = ({
     else if (score >= 40) category = 'Moderate'
     else category = 'Indulgent'
     
-    setHealthInfo({ score, category, reason: `Based on ${option.type} preparation` })
+            setHealthInfo({ score, category, reason: `Based on price category` })
   }
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Make': return '#22c55e'
-      case 'Premade': return '#f59e0b'
-      case 'Prepared': return '#ef4444'
-      default: return '#6b7280'
-    }
-  }
+  
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -111,68 +102,19 @@ const FoodCard: React.FC<FoodCardProps> = ({
     }
   }
 
-  const handleGetDirections = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    
-    // Use nearby locations from FoodChainService if available
-    if (option.nearbyLocations && option.nearbyLocations.length > 0 && userLocation) {
-      const nearestLocation = option.nearbyLocations[0]
-      
-      try {
-        // Use Google Maps directions with proper place_id
-        if (nearestLocation.placeId && nearestLocation.placeId !== 'undefined') {
-          // Open Google Maps with the specific place
-          const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=place_id:${nearestLocation.placeId}&travelmode=driving`
-          window.open(directionsUrl, '_blank')
-        } else {
-          // Fallback to coordinates if place_id is invalid
-          const directionsUrl = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${nearestLocation.coordinates.lat},${nearestLocation.coordinates.lng}`
-          window.open(directionsUrl, '_blank')
-        }
-      } catch (error) {
-        console.error('Error opening directions:', error)
-        // Final fallback to coordinate-based directions
-        const directionsUrl = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${nearestLocation.coordinates.lat},${nearestLocation.coordinates.lng}`
-        window.open(directionsUrl, '_blank')
-      }
-    } else if (nearestStore && userLocation) {
-      // Fallback to existing nearestStore logic
-      try {
-        const directionsUrl = locationService.generateDirectionsUrl(nearestStore, userLocation)
-        window.open(directionsUrl, '_blank')
-      } catch (error) {
-        console.error('Error generating directions:', error)
-        // Fallback to basic directions
-        const directionsUrl = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${nearestStore.lat},${nearestStore.lng}`
-        window.open(directionsUrl, '_blank')
-      }
-    } else if (userLocation) {
-      // Search for the store near user location
-      const searchUrl = locationService.generatePlaceSearchUrl(option.location, userLocation)
-      window.open(searchUrl, '_blank')
-    } else {
-      // Fallback to general search if location data isn't available
-      const searchUrl = locationService.generatePlaceSearchUrl(`${option.location} near me`)
-      window.open(searchUrl, '_blank')
-    }
-  }
 
-  const handleFoodInfo = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (onShowNutrition) {
-      onShowNutrition(option.name, option.location)
-    }
-  }
+
+
 
   return (
     <div
       style={{
         background: isHighlighted 
-          ? 'rgba(255, 255, 255, 0.15)' 
+          ? 'rgba(253, 246, 227, 0.95)' 
           : isHovered 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(255, 255, 255, 0.05)',
-        border: `2px solid ${isHighlighted ? 'rgba(255,255,255,0.8)' : isHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)'}`,
+            ? 'rgba(253, 246, 227, 0.9)' 
+            : 'rgba(253, 246, 227, 0.85)',
+        border: `2px solid ${isHighlighted ? '#e8e6e0' : isHovered ? '#d1d5db' : '#cbd5e1'}`,
         borderRadius: '16px',
         padding: '20px',
         minWidth: '200px',
@@ -181,11 +123,11 @@ const FoodCard: React.FC<FoodCardProps> = ({
         cursor: 'pointer',
         transition: 'all 0.3s ease',
         boxShadow: isHighlighted 
-          ? '0 12px 40px rgba(255,255,255,0.3)' 
+          ? '0 12px 40px rgba(0, 0, 0, 0.15)' 
           : isHovered 
-            ? '0 8px 25px rgba(255,255,255,0.2)' 
-            : '0 4px 15px rgba(255,255,255,0.1)',
-        color: 'white',
+            ? '0 8px 25px rgba(0, 0, 0, 0.1)' 
+            : '0 4px 15px rgba(0, 0, 0, 0.08)',
+        color: '#1e293b',
         position: 'relative',
         overflow: 'hidden'
       }}
@@ -211,18 +153,19 @@ const FoodCard: React.FC<FoodCardProps> = ({
             style={{
               width: '24px',
               height: '24px',
-              borderRadius: '4px',
-              border: `2px solid ${isSelectedForComparison ? '#f59e0b' : 'rgba(255,255,255,0.5)'}`,
+              borderRadius: '6px',
+              border: `2px solid ${isSelectedForComparison ? '#f59e0b' : '#d1d5db'}`,
               background: isSelectedForComparison 
                 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                : 'rgba(255,255,255,0.1)',
+                : 'rgba(255, 255, 255, 0.9)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               opacity: 1,
               transition: 'all 0.2s ease',
-              backdropFilter: 'blur(10px)'
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
             }}
           >
             {isSelectedForComparison && (
@@ -232,24 +175,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
         </div>
       )}
 
-      {/* Type Badge */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: getTypeColor(option.type),
-          color: 'white',
-          padding: '4px 8px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          fontWeight: '600',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px'
-        }}
-      >
-        {option.type}
-      </div>
+
 
       {/* Category Badge */}
       <div
@@ -298,7 +224,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
       )}
 
       {/* Content */}
-      <div style={{ marginTop: '35px' }}>
+      <div style={{ marginTop: '35px', textAlign: 'center' }}>
         <h3
           style={{
             fontSize: '18px',
@@ -313,38 +239,30 @@ const FoodCard: React.FC<FoodCardProps> = ({
         <div
           style={{
             fontSize: '14px',
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(30, 41, 59, 0.8)',
             marginBottom: '8px',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            gap: '6px',
+            justifyContent: 'center'
           }}
         >
           <span>📍</span>
           {option.nearbyLocations && option.nearbyLocations.length > 0 ? (
-            <span style={{ fontSize: '14px', color: 'white', fontWeight: '500' }}>
+            <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
               {option.nearbyLocations[0].name}
             </span>
           ) : (
             option.location
-          )}
-          {option.nearbyLocations && option.nearbyLocations.length > 0 && (
-            <span style={{ fontSize: '12px', color: '#4ade80', fontWeight: '600' }}>
-              ({option.nearbyLocations[0].distanceText})
-            </span>
-          )}
-          {userLocation && !option.nearbyLocations?.length && !nearestStore && !isLoadingLocation && (
-            <span style={{ fontSize: '11px', color: '#f59e0b', fontWeight: '500' }}>
-              (None nearby)
-            </span>
           )}
         </div>
 
         {isLoadingLocation && (
           <div style={{
             fontSize: '11px',
-            color: 'rgba(255,255,255,0.6)',
-            marginBottom: '8px'
+            color: 'rgba(30, 41, 59, 0.6)',
+            marginBottom: '8px',
+            textAlign: 'center'
           }}>
             📍 Finding nearby locations...
           </div>
@@ -359,84 +277,6 @@ const FoodCard: React.FC<FoodCardProps> = ({
           }}
         >
           ${option.price.toFixed(2)}
-        </div>
-
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          flexDirection: 'column'
-        }}>
-          <button
-            onClick={handleGetDirections}
-            disabled={isLoadingLocation}
-            style={{
-              width: '100%',
-              padding: '10px 16px',
-              background: isLoadingLocation 
-                ? 'rgba(100, 100, 100, 0.3)' 
-                : 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-              border: 'none',
-              borderRadius: '8px',
-              color: 'white',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: isLoadingLocation ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
-              backdropFilter: 'blur(5px)',
-              opacity: isLoadingLocation ? 0.6 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoadingLocation) {
-                e.currentTarget.style.transform = 'translateY(-1px)'
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.4)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
-          >
-            {isLoadingLocation ? (
-              '⏳ Finding locations...'
-            ) : option.nearbyLocations && option.nearbyLocations.length > 0 ? (
-              `🧭 Directions (${option.nearbyLocations[0].distanceText})`
-            ) : nearestStore ? (
-              `🧭 Directions (${nearestStore.distanceText || `${nearestStore.distance.toFixed(1)} mi`})`
-            ) : userLocation ? (
-              '🔍 Search Near Me'
-            ) : (
-              '🗺️ Find Locations'
-            )}
-          </button>
-
-          <button
-            onClick={handleFoodInfo}
-            style={{
-              width: '100%',
-              padding: '8px 16px',
-              background: 'rgba(59, 130, 246, 0.2)',
-              border: '1px solid rgba(59, 130, 246, 0.4)',
-              borderRadius: '6px',
-              color: '#93c5fd',
-              fontSize: '12px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              backdropFilter: 'blur(5px)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
-              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)'
-              e.currentTarget.style.color = '#dbeafe'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
-              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.4)'
-              e.currentTarget.style.color = '#93c5fd'
-            }}
-          >
-            ℹ️ Nutrition Facts
-          </button>
         </div>
       </div>
 

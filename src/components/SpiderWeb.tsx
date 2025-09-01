@@ -4,6 +4,7 @@ import FoodCard from './FoodCard'
 import WebConnection from './WebConnection'
 import NutritionPopup from './NutritionPopup'
 import ComparisonModal from './ComparisonModal'
+import RestaurantDiscovery from './RestaurantDiscovery'
 
 interface SpiderWebProps {
   foodOptions: FoodOption[]
@@ -31,17 +32,18 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   const dragThresholdPx = 6
   const [scale, setScale] = useState(1)
   const [containerDimensions, setContainerDimensions] = useState({ width: window.innerWidth * 2, height: window.innerHeight * 2 })
-  const [typeFilter, setTypeFilter] = useState<'Make' | 'Prepared' | 'Premade' | 'All'>('All')
+  const [typeFilter, setTypeFilter] = useState<'All'>('All')
   const [typeOffset, setTypeOffset] = useState(0) // For showing different options of the same type
-  const [nutritionPopup, setNutritionPopup] = useState<{ isOpen: boolean; foodName: string; restaurantName: string }>({
-    isOpen: false,
-    foodName: '',
-    restaurantName: ''
-  })
+
   const [selectedForComparison, setSelectedForComparison] = useState<Set<string>>(new Set())
   const [showComparison, setShowComparison] = useState(false)
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null)
   const [showRecommendationBox, setShowRecommendationBox] = useState(true)
+  const [showNutritionPopup, setShowNutritionPopup] = useState(false)
+  const [selectedNutritionOption, setSelectedNutritionOption] = useState<FoodOption | null>(null)
+  const [showRestaurantDiscovery, setShowRestaurantDiscovery] = useState(false)
+  const [selectedFoodForDiscovery, setSelectedFoodForDiscovery] = useState<string>('')
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Update container dimensions on resize
@@ -66,6 +68,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
     return () => window.removeEventListener('resize', updateDimensions)
   }, [])
 
+  // Get user location on component mount
+  useEffect(() => {
+    getUserLocation()
+  }, [])
+
   // Calculate positions for the spider web layout
   const centerPos: Position = { x: 50, y: 50 } // Center of viewport (percentage)
   
@@ -84,9 +91,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   const midRangeOptions = filteredOptions.filter(option => option.category === 'Mid-Range')
   const premiumOptions = filteredOptions.filter(option => option.category === 'Premium')
   
-  const makeOptions = filteredOptions.filter(option => option.type === 'Make')
-  const premadeOptions = filteredOptions.filter(option => option.type === 'Premade')
-  const preparedOptions = filteredOptions.filter(option => option.type === 'Prepared')
+
 
   // Apply offset for showing different sets of options
   const getOffsetOptions = (options: FoodOption[], maxCount: number) => {
@@ -122,32 +127,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         { x: 10, y: 88 }, { x: 90, y: 88 }
       ]
     },
-    make: { // Left section - arranged in 3 concentric arcs
-      center: { x: 15, y: 50 },
-      positions: [
-        // Inner arc
-        { x: 22, y: 40 }, { x: 20, y: 50 }, { x: 22, y: 60 },
-        // Middle arc
-        { x: 12, y: 30 }, { x: 8, y: 50 }, { x: 12, y: 70 },
-        // Outer arc
-        { x: 3, y: 20 }, { x: 1, y: 35 }, { x: 1, y: 65 }, { x: 3, y: 80 },
-        // Additional positions
-        { x: 15, y: 25 }, { x: 15, y: 75 }
-      ]
-    },
-    prepared: { // Right section - arranged in 3 concentric arcs
-      center: { x: 85, y: 50 },
-      positions: [
-        // Inner arc
-        { x: 78, y: 40 }, { x: 80, y: 50 }, { x: 78, y: 60 },
-        // Middle arc
-        { x: 88, y: 30 }, { x: 92, y: 50 }, { x: 88, y: 70 },
-        // Outer arc
-        { x: 97, y: 20 }, { x: 99, y: 35 }, { x: 99, y: 65 }, { x: 97, y: 80 },
-        // Additional positions
-        { x: 85, y: 25 }, { x: 85, y: 75 }
-      ]
-    },
+
     midRange: { // Mid-range positions - 2 concentric rings around center
       center: { x: 50, y: 50 },
       positions: [
@@ -176,19 +156,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       section: 'budget'
     })),
     
-    // Make section (left) - prioritize "Make" type regardless of price
-    ...getOffsetOptions(makeOptions, 9).map((option, i) => ({
-      option,
-      pos: sectionPositions.make.positions[i] || sectionPositions.make.center,
-      section: 'make'
-    })),
-    
-    // Prepared section (right) - prioritize "Prepared" type regardless of price
-    ...getOffsetOptions(preparedOptions, 9).map((option, i) => ({
-      option,
-      pos: sectionPositions.prepared.positions[i] || sectionPositions.prepared.center,
-      section: 'prepared'
-    })),
+
     
     // Mid-range section (center area) - remaining mid-range options
     ...getOffsetOptions(midRangeOptions, 8).map((option, i) => ({
@@ -390,6 +358,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   // Dragging functionality
   // Re-enabled dragging functionality
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Disable dragging when recommendations modal is open
+    if (showRecommendationBox) {
+      return
+    }
+    
     // Ignore drags that start on interactive elements
     const target = e.target as HTMLElement
     if (
@@ -407,6 +380,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Disable dragging when recommendations modal is open
+    if (showRecommendationBox) {
+      return
+    }
+    
     if (!isMouseDown) return // Only move if mouse is pressed down
 
     const deltaX = e.clientX - dragStart.x
@@ -428,6 +406,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   }
 
   const handleMouseUp = () => {
+    // Disable dragging when recommendations modal is open
+    if (showRecommendationBox) {
+      return
+    }
+    
     setIsMouseDown(false)
     setIsDragging(false)
     // Unfreeze positions when dragging ends
@@ -436,6 +419,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
 
   // Zoom functionality
   const handleWheel = (e: React.WheelEvent) => {
+    // Disable zooming when recommendations modal is open
+    if (showRecommendationBox) {
+      return
+    }
+    
     e.preventDefault()
     const delta = e.deltaY * -0.001
     setScale(prev => Math.min(Math.max(prev + delta, 0.5), 3))
@@ -475,6 +463,29 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
     })
   }
 
+  const handleRestaurantDiscovery = (foodName: string) => {
+    setSelectedFoodForDiscovery(foodName)
+    setShowRestaurantDiscovery(true)
+  }
+
+  // Get user location for restaurant discovery
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          })
+        },
+        (error) => {
+          console.error('Error getting location:', error)
+          setUserLocation(null)
+        }
+      )
+    }
+  }
+
   const handleCompare = async () => {
     if (selectedForComparison.size < 2) return
 
@@ -492,10 +503,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       const priceScore = maxPrice > minPrice ? (maxPrice - option.price) / (maxPrice - minPrice) * 40 : 20
       score += priceScore
 
-      // Type factor (Make > Premade > Prepared for health)
-      if (option.type === 'Make') score += 30
-      else if (option.type === 'Premade') score += 20
-      else score += 10
+
 
       // Category factor (Budget and Mid-Range get bonus)
       if (option.category === 'Budget') score += 20
@@ -517,27 +525,10 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
     setShowComparison(true)
   }
 
-  // Filter button functionality
+  // Filter button functionality - now only shows all options
   const handleTypeFilterClick = () => {
-    const types: ('Make' | 'Prepared' | 'Premade' | 'All')[] = ['All', 'Make', 'Prepared', 'Premade']
-    const currentIndex = types.indexOf(typeFilter)
-    const nextIndex = (currentIndex + 1) % types.length
-    const nextType = types[nextIndex]
-    
-    setTypeFilter(nextType)
-    setTypeOffset(0) // Reset offset when changing type
-    
-    // Auto-select a center option from the new filtered set
-    setTimeout(() => {
-      const newFilteredOptions = nextType === 'All' 
-        ? foodOptions 
-        : foodOptions.filter(option => option.type === nextType)
-      
-      if (newFilteredOptions.length > 0) {
-        const randomOption = newFilteredOptions[Math.floor(Math.random() * newFilteredOptions.length)]
-        onCenterChange(randomOption)
-      }
-    }, 100)
+    // Since we only have 'All' type now, just reset the offset
+    setTypeOffset(0)
   }
 
   // Show more options of the same type
@@ -548,13 +539,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
 
   // Get filter button text and emoji
   const getFilterDisplay = () => {
-    switch (typeFilter) {
-      case 'Make': return '🍳 Make'
-      case 'Prepared': return '🍽️ Prepared'
-      case 'Premade': return '📦 Premade'
-      case 'All': return '🌟 All Types'
-      default: return '🌟 All Types'
-    }
+    return '🌟 All Types'
   }
 
   // Get current recommendation box options
@@ -619,7 +604,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       width: '100vw',
       height: '100vh',
       overflow: 'hidden',
-      background: '#000'
+              background: 'linear-gradient(135deg, #fdf6e3 0%, #f5e6d3 100%)'
     }}>
       <div 
         ref={containerRef}
@@ -629,8 +614,8 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           position: 'absolute',
           top: '-50vh', // Center the expanded canvas
           left: '-50vw', // Center the expanded canvas
-          cursor: isDragging ? 'grabbing' : 'grab',
-          background: 'radial-gradient(circle at center, #1a1a1a 0%, #0c0c0c 100%)',
+          cursor: showRecommendationBox ? 'default' : (isDragging ? 'grabbing' : 'grab'),
+          background: 'radial-gradient(circle at center, #fef3c7 0%, #fde68a 100%)',
           minHeight: '2000px', // Minimum size to ensure enough space
           minWidth: '2000px'
         }}
@@ -653,12 +638,15 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           onClick={onReset}
           style={{
             padding: '12px 20px',
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '8px',
-            color: 'white',
+            background: 'rgba(255, 255, 255, 0.95)',
+            border: '2px solid #e8e6e0',
+            borderRadius: '12px',
+            color: '#1e293b',
             cursor: 'pointer',
-            backdropFilter: 'blur(10px)'
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            fontWeight: '600',
+            transition: 'all 0.2s ease'
           }}
         >
           ← New Search
@@ -736,7 +724,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
            ⚖️ Compare ({selectedForComparison.size}/4)
          </button>
          
-         {/* AI Choice Button */}
+         {/* Recommendations Button */}
          <button
            onClick={() => setShowRecommendationBox(true)}
            style={{
@@ -752,15 +740,15 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
              marginTop: '10px'
            }}
          >
-           🤖 AI Choice
+           ❓ Recommendations
          </button>
          
-         {/* Back Button */}
+         {/* Search Button */}
          <button
            onClick={onReset}
            style={{
              padding: '12px 20px',
-             background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+             background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
              color: 'white',
              border: 'none',
              borderRadius: '50px',
@@ -769,18 +757,19 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
              fontWeight: '600',
              minWidth: '140px',
              marginTop: '10px',
-             transition: 'all 0.3s ease'
+             transition: 'all 0.3s ease',
+             boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
            }}
            onMouseEnter={(e) => {
              e.currentTarget.style.transform = 'scale(1.05)'
-             e.currentTarget.style.boxShadow = '0 8px 25px rgba(55, 65, 81, 0.4)'
+             e.currentTarget.style.boxShadow = '0 8px 25px rgba(249, 115, 22, 0.4)'
            }}
            onMouseLeave={(e) => {
              e.currentTarget.style.transform = 'scale(1)'
-             e.currentTarget.style.boxShadow = 'none'
+             e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.3)'
            }}
          >
-           🔙 Back to Search
+           🔍 Search
          </button>
        </div>
 
@@ -811,7 +800,8 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         height: '100%',
         transform: `translate(${dragOffset.x}px, ${dragOffset.y}px) scale(${scale})`,
         transformOrigin: 'center center',
-        transition: isDragging ? 'none' : 'transform 0.1s ease'
+        transition: isDragging ? 'none' : 'transform 0.1s ease',
+        pointerEvents: showRecommendationBox ? 'none' : 'auto'
       }}>
         {/* Connection Lines */}
         {collisionFreeOptions.map(({ option, pos }) => (
@@ -999,33 +989,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           💰 BUDGET
         </div>
         
-        <div style={{
-          position: 'absolute',
-          left: '2%',
-          top: '50%',
-          transform: 'translateY(-50%) rotate(-90deg)',
-          color: '#22c55e',
-          fontSize: '18px',
-          fontWeight: '700',
-          textShadow: '0 2px 10px rgba(34, 197, 94, 0.6)',
-          zIndex: 40
-        }}>
-          🍳 MAKE
-        </div>
-        
-        <div style={{
-          position: 'absolute',
-          right: '2%',
-          top: '50%',
-          transform: 'translateY(-50%) rotate(90deg)',
-          color: '#f59e0b',
-          fontSize: '18px',
-          fontWeight: '700',
-          textShadow: '0 2px 10px rgba(245, 158, 11, 0.6)',
-          zIndex: 40
-        }}>
-          🍽️ PREPARED
-        </div>
+
 
         {/* Food Cards */}
         {collisionFreeOptions.map(({ option, pos }) => (
@@ -1075,9 +1039,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                option={option}
                isHighlighted={selectedCenter?.id === option.id}
                onClick={() => onCenterChange(option)}
-               onShowNutrition={(foodName, restaurantName) => 
-                 setNutritionPopup({ isOpen: true, foodName, restaurantName })
-               }
+
                isSelectedForComparison={selectedForComparison.has(option.id)}
                onComparisonToggle={handleComparisonToggle}
              />
@@ -1085,13 +1047,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
         ))}
       </div>
 
-      {/* Nutrition Popup - Rendered at root level */}
-      <NutritionPopup
-        isOpen={nutritionPopup.isOpen}
-        onClose={() => setNutritionPopup({ isOpen: false, foodName: '', restaurantName: '' })}
-        foodName={nutritionPopup.foodName}
-        restaurantName={nutritionPopup.restaurantName}
-      />
+
 
       {/* Comparison Modal */}
       <ComparisonModal
@@ -1111,12 +1067,15 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'rgba(0, 0, 0, 0.95)',
-          border: '2px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '20px',
-          padding: '30px',
+          background: 'rgba(253, 246, 227, 0.98)',
+          border: '3px solid #e8e6e0',
+          borderRadius: '24px',
+          padding: '32px',
           zIndex: 2000,
-          minWidth: '600px'
+          minWidth: '600px',
+          maxHeight: '80vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
         }}>
           {/* Close Button */}
           <button
@@ -1125,14 +1084,17 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
               position: 'absolute',
               top: '15px',
               right: '15px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.95)',
+              border: '2px solid #e8e6e0',
               borderRadius: '50%',
-              width: '30px',
-              height: '30px',
-              color: 'white',
+              width: '32px',
+              height: '32px',
+              color: '#1e293b',
               cursor: 'pointer',
-              fontSize: '18px'
+              fontSize: '18px',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+              fontWeight: '600',
+              transition: 'all 0.2s ease'
             }}
           >
             ✕
@@ -1142,11 +1104,12 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           <div style={{
             textAlign: 'center',
             marginBottom: '30px',
-            color: 'white',
-            fontSize: '24px',
-            fontWeight: 'bold'
+            color: '#1e293b',
+            fontSize: '26px',
+            fontWeight: '700',
+            textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
           }}>
-            🍔 AI Recommendations
+            🍔 Recommendations
           </div>
           
           {/* Recommendation Layout */}
@@ -1175,14 +1138,15 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                   <div
                     key={option.id}
                     style={{
-                      background: 'rgba(16, 185, 129, 0.1)',
-                      border: '2px solid rgba(16, 185, 129, 0.3)',
-                      borderRadius: '15px',
-                      padding: '15px',
+                      background: 'rgba(253, 246, 227, 0.95)',
+                      border: '2px solid #bbf7d0',
+                      borderRadius: '16px',
+                      padding: '16px',
                       minWidth: '150px',
                       textAlign: 'center',
-                      color: 'white',
-                      position: 'relative'
+                      color: '#1e293b',
+                      position: 'relative',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                     }}
                   >
                     {/* Checkbox */}
@@ -1195,18 +1159,19 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         position: 'absolute',
                         top: '10px',
                         right: '10px',
-                        width: '20px',
-                        height: '20px',
-                        border: '2px solid rgba(255, 255, 255, 0.6)',
-                        borderRadius: '4px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        border: `2px solid ${selectedForComparison.has(option.id) ? '#10b981' : '#d1d5db'}`,
                         background: selectedForComparison.has(option.id) 
-                          ? '#10b981' 
-                          : 'transparent',
+                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                          : 'rgba(255, 255, 255, 0.9)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                       }}
                     >
                       {selectedForComparison.has(option.id) && (
@@ -1219,7 +1184,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                       onClick={() => {
                         onCenterChange(option)
                       }}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', marginTop: '35px' }}
                     >
                       <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
                         {option.name}
@@ -1235,6 +1200,64 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                       }}>
                         ${option.price}
                       </div>
+                      
+                      {/* Action Buttons */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginTop: '12px',
+                        justifyContent: 'center'
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedNutritionOption(option)
+                            setShowNutritionPopup(true)
+                          }}
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            color: '#10b981',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                          }}
+                        >
+                          🍎 Nutrition
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRestaurantDiscovery(option.name)
+                          }}
+                          style={{
+                            background: 'rgba(139, 92, 246, 0.2)',
+                            border: '1px solid rgba(139, 92, 246, 0.4)',
+                            color: '#8b5cf6',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                          }}
+                        >
+                          🍽️ Find Restaurants
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1243,13 +1266,13 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                  <div
                    key={`empty-cheaper-${index}`}
                    style={{
-                     background: 'rgba(16, 185, 129, 0.05)',
-                     border: '2px dashed rgba(16, 185, 129, 0.2)',
-                     borderRadius: '15px',
-                     padding: '15px',
+                     background: 'rgba(253, 246, 227, 0.6)',
+                     border: '2px dashed #bbf7d0',
+                     borderRadius: '16px',
+                     padding: '16px',
                      minWidth: '150px',
                      textAlign: 'center',
-                     color: 'rgba(255, 255, 255, 0.3)',
+                     color: '#94a3b8',
                      minHeight: '80px',
                      display: 'flex',
                      alignItems: 'center',
@@ -1269,22 +1292,24 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
               gap: '15px'
             }}>
               <div style={{
-                color: 'white',
+                color: '#1e293b',
                 fontSize: '16px',
-                fontWeight: 'bold',
-                marginBottom: '10px'
+                fontWeight: '700',
+                marginBottom: '10px',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
               }}>
                 🎯 Current Choice
               </div>
                              <div style={{
-                 background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
-                 border: '3px solid #666',
+                 background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                 border: '3px solid #e8e6e0',
                  borderRadius: '20px',
                  padding: '25px',
                  minWidth: '180px',
                  textAlign: 'center',
-                 color: '#1a1a1a',
-                 position: 'relative'
+                 color: '#1e293b',
+                 position: 'relative',
+                 boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
                }}>
                  {/* Checkbox */}
                  <div
@@ -1296,18 +1321,19 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                      position: 'absolute',
                      top: '15px',
                      right: '15px',
-                     width: '20px',
-                     height: '20px',
-                     border: '2px solid rgba(0, 0, 0, 0.4)',
-                     borderRadius: '4px',
+                     width: '24px',
+                     height: '24px',
+                     borderRadius: '6px',
+                     border: `2px solid ${selectedForComparison.has(currentRecommendations.center.id) ? '#10b981' : '#d1d5db'}`,
                      background: selectedForComparison.has(currentRecommendations.center.id) 
-                       ? '#10b981' 
-                       : 'transparent',
+                       ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                       : 'rgba(255, 255, 255, 0.9)',
                      cursor: 'pointer',
                      display: 'flex',
                      alignItems: 'center',
                      justifyContent: 'center',
-                     transition: 'all 0.2s ease'
+                     transition: 'all 0.2s ease',
+                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                    }}
                  >
                    {selectedForComparison.has(currentRecommendations.center.id) && (
@@ -1315,7 +1341,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                    )}
                  </div>
                  
-                 <div style={{ fontSize: '32px', marginBottom: '10px' }}>🍔</div>
+                 <div style={{ fontSize: '32px', marginBottom: '10px', marginTop: '35px' }}>🍔</div>
                  <div style={{ 
                    fontWeight: 'bold', 
                    fontSize: '18px',
@@ -1329,9 +1355,68 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                  <div style={{ 
                    fontSize: '24px', 
                    fontWeight: 'bold',
-                   color: '#1a1a1a'
+                   color: '#f59e0b'
                  }}>
                    ${currentRecommendations.center.price}
+                 </div>
+                 
+                 {/* Action Buttons */}
+                 <div style={{
+                   display: 'flex',
+                   gap: '8px',
+                   marginTop: '12px',
+                   justifyContent: 'center'
+                 }}>
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation()
+                       setSelectedNutritionOption(currentRecommendations.center)
+                       setShowNutritionPopup(true)
+                     }}
+                     style={{
+                       background: 'rgba(16, 185, 129, 0.2)',
+                       border: '1px solid rgba(16, 185, 129, 0.4)',
+                       color: '#10b981',
+                       padding: '6px 12px',
+                       borderRadius: '8px',
+                       fontSize: '12px',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease'
+                     }}
+                     onMouseEnter={(e) => {
+                       e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                     }}
+                     onMouseLeave={(e) => {
+                       e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                     }}
+                   >
+                     🍎 Nutrition
+                   </button>
+
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation()
+                       handleRestaurantDiscovery(currentRecommendations.center.name)
+                     }}
+                     style={{
+                       background: 'rgba(139, 92, 246, 0.2)',
+                       border: '1px solid rgba(139, 92, 246, 0.4)',
+                       color: '#8b5cf6',
+                       padding: '6px 12px',
+                       borderRadius: '8px',
+                       fontSize: '12px',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease'
+                     }}
+                     onMouseEnter={(e) => {
+                       e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                     }}
+                     onMouseLeave={(e) => {
+                       e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                     }}
+                   >
+                     🍽️ Find Restaurants
+                   </button>
                  </div>
                </div>
             </div>
@@ -1344,25 +1429,27 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                alignItems: 'center'
              }}>
                <div style={{
-                 color: '#ef4444',
+                 color: '#dc2626',
                  fontSize: '16px',
-                 fontWeight: 'bold',
-                 marginBottom: '10px'
+                 fontWeight: '700',
+                 marginBottom: '10px',
+                 textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                }}>
-                 💎 More Expensive
+                 👑 More Expensive
                </div>
                                {currentRecommendations.moreExpensive.map((option) => (
                   <div
                     key={option.id}
                     style={{
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      border: '2px solid rgba(239, 68, 68, 0.3)',
-                      borderRadius: '15px',
-                      padding: '15px',
+                      background: 'rgba(253, 246, 227, 0.95)',
+                      border: '2px solid #ef4444',
+                      borderRadius: '16px',
+                      padding: '16px',
                       minWidth: '150px',
                       textAlign: 'center',
-                      color: 'white',
-                      position: 'relative'
+                      color: '#1e293b',
+                      position: 'relative',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
                     }}
                   >
                     {/* Checkbox */}
@@ -1375,18 +1462,19 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         position: 'absolute',
                         top: '10px',
                         right: '10px',
-                        width: '20px',
-                        height: '20px',
-                        border: '2px solid rgba(255, 255, 255, 0.6)',
-                        borderRadius: '4px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '6px',
+                        border: `2px solid ${selectedForComparison.has(option.id) ? '#ef4444' : '#d1d5db'}`,
                         background: selectedForComparison.has(option.id) 
-                          ? '#ef4444' 
-                          : 'transparent',
+                          ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+                          : 'rgba(255, 255, 255, 0.9)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                       }}
                     >
                       {selectedForComparison.has(option.id) && (
@@ -1399,7 +1487,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                       onClick={() => {
                         onCenterChange(option)
                       }}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: 'pointer', marginTop: '35px' }}
                     >
                       <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>
                         {option.name}
@@ -1410,10 +1498,68 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                       <div style={{ 
                         fontSize: '18px', 
                         fontWeight: 'bold', 
-                        color: '#ef4444',
+                        color: '#dc2626',
                         marginTop: '5px'
                       }}>
                         ${option.price}
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginTop: '12px',
+                        justifyContent: 'center'
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedNutritionOption(option)
+                            setShowNutritionPopup(true)
+                          }}
+                          style={{
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                            color: '#10b981',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                          }}
+                        >
+                          🍎 Nutrition
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRestaurantDiscovery(option.name)
+                          }}
+                          style={{
+                            background: 'rgba(139, 92, 246, 0.2)',
+                            border: '1px solid rgba(139, 92, 246, 0.4)',
+                            color: '#8b5cf6',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                          }}
+                        >
+                          🍽️ Find Restaurants
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1423,13 +1569,13 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                  <div
                    key={`empty-expensive-${index}`}
                    style={{
-                     background: 'rgba(239, 68, 68, 0.05)',
-                     border: '2px dashed rgba(239, 68, 68, 0.2)',
-                     borderRadius: '15px',
-                     padding: '15px',
+                     background: 'rgba(253, 246, 227, 0.6)',
+                     border: '2px dashed #fecaca',
+                     borderRadius: '16px',
+                     padding: '16px',
                      minWidth: '150px',
                      textAlign: 'center',
-                     color: 'rgba(255, 255, 255, 0.3)',
+                     color: '#94a3b8',
                      minHeight: '80px',
                      display: 'flex',
                      alignItems: 'center',
@@ -1443,6 +1589,29 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Nutrition Popup */}
+      {showNutritionPopup && selectedNutritionOption && (
+        <NutritionPopup
+          foodOption={selectedNutritionOption}
+          onClose={() => {
+            setShowNutritionPopup(false)
+            setSelectedNutritionOption(null)
+          }}
+        />
+      )}
+
+      {/* Restaurant Discovery Modal */}
+      {showRestaurantDiscovery && selectedFoodForDiscovery && (
+        <RestaurantDiscovery
+          foodName={selectedFoodForDiscovery}
+          userLocation={userLocation}
+          onClose={() => {
+            setShowRestaurantDiscovery(false)
+            setSelectedFoodForDiscovery('')
+          }}
+        />
+      )}
     </div>
     </div>
   )
@@ -1451,16 +1620,19 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
 const zoomButtonStyle: React.CSSProperties = {
   width: '40px',
   height: '40px',
-  background: 'rgba(255, 255, 255, 0.1)',
-  border: '1px solid rgba(255, 255, 255, 0.3)',
-  borderRadius: '8px',
-  color: 'white',
+  background: 'rgba(255, 255, 255, 0.95)',
+  border: '2px solid #e8e6e0',
+  borderRadius: '12px',
+  color: '#1e293b',
   cursor: 'pointer',
   fontSize: '18px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  backdropFilter: 'blur(10px)'
+  backdropFilter: 'blur(10px)',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+  fontWeight: '600',
+  transition: 'all 0.2s ease'
 }
 
 export default SpiderWeb

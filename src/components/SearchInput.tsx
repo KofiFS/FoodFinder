@@ -15,10 +15,13 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [isLocationLoading, setIsLocationLoading] = useState(false)
 
+
   // Check location permission status on component mount
   useEffect(() => {
     checkLocationPermission()
   }, [])
+
+
 
   // Check location permission status
   const checkLocationPermission = async () => {
@@ -120,13 +123,25 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
           return
         }
         
+        // Set local loading state to show loading screen immediately
+        setIsLocationLoading(true)
+        
         // Use Food Chain Service to create complete food chain
         const foodChainResult = await FoodChainService.createFoodChain(query.trim(), userLocation)
-        onSearch(query.trim(), foodChainResult)
+        try {
+          onSearch(query.trim(), foodChainResult)
+        } catch (searchError) {
+          // Handle errors from the search (like no results found)
+          console.error('Error in search:', searchError)
+          setError(searchError instanceof Error ? searchError.message : 'An error occurred during the search.')
+        }
       } catch (error) {
         console.error('Error creating food chain:', error)
         // Set error message to display above search bar
         setError(error instanceof Error ? error.message : 'Unable to create food chain at this time.')
+      } finally {
+        // Clear local loading state
+        setIsLocationLoading(false)
       }
     }
   }
@@ -138,99 +153,14 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
       left: '50%',
       transform: 'translate(-50%, -50%)',
       textAlign: 'center',
-      zIndex: 1000
+      zIndex: 1000,
+      width: '100%',
+      maxWidth: '600px',
+      padding: '0 20px'
     }}>
-      <div style={{
-        marginBottom: '40px'
-      }}>
-        <h1 style={{
-          fontSize: '3rem',
-          fontWeight: '700',
-          marginBottom: '16px',
-          background: 'linear-gradient(135deg, #ffffff 0%, #cccccc 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          textAlign: 'center'
-        }}>
-          🍔 Food Chain Explorer
-        </h1>
-        <p style={{
-          fontSize: '1.2rem',
-          color: '#888',
-          maxWidth: '500px',
-          lineHeight: '1.6'
-        }}>
-          AI analyzes your cravings, finds nearby food options, and creates a chain of choices.
-          Discover real locations where you can satisfy your hunger!
-        </p>
-      </div>
 
-      {/* Debug Info */}
-      <div style={{
-        background: 'rgba(0, 0, 0, 0.7)',
-        color: 'white',
-        padding: '16px 20px',
-        borderRadius: '12px',
-        marginBottom: '20px',
-        fontSize: '14px',
-        fontFamily: 'monospace',
-        textAlign: 'center',
-        maxWidth: '500px',
-        margin: '0 auto 20px'
-      }}>
-        <div style={{ marginBottom: '12px' }}>
-          Debug: isLoading={isLoading.toString()}, isLocationLoading={isLocationLoading.toString()}, locationPermission={locationPermission}
-        </div>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          gap: '10px',
-          flexWrap: 'wrap'
-        }}>
-          <button 
-            onClick={() => setIsLocationLoading(!isLocationLoading)}
-            style={{ 
-              background: '#333',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#555'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#333'
-            }}
-          >
-            Toggle Location Loading
-          </button>
-          <button 
-            onClick={() => onSearch('test', { foods: [], reasoning: '', nearbyLocations: [] })}
-            style={{ 
-              background: '#333',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#555'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#333'
-            }}
-          >
-            Test Search Loading
-          </button>
-        </div>
-      </div>
+
+
 
       {/* Loading Screen */}
       {(isLoading || isLocationLoading) && (
@@ -240,7 +170,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
+          background: 'rgba(253, 246, 227, 0.3)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -249,31 +179,30 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
           backdropFilter: 'blur(10px)'
         }}>
           <div style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            padding: '40px',
-            borderRadius: '20px',
+            background: 'rgba(253, 246, 227, 0.98)',
+            padding: '48px',
+            borderRadius: '24px',
             textAlign: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)'
+            border: '3px solid #e8e6e0',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)'
           }}>
             <div style={{
               width: '60px',
               height: '60px',
-              border: '4px solid rgba(255, 255, 255, 0.3)',
-              borderTop: '4px solid #4f46e5',
+              border: '4px solid #fde68a',
+              borderTop: '4px solid #f97316',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite',
               margin: '0 auto 20px'
             }}></div>
-            <h2 style={{ color: 'white', marginBottom: '10px' }}>
-              {isLocationLoading ? '📍 Getting Your Location...' : '🔍 Searching Food Chain'}
+            <h2 style={{ color: '#1e293b', marginBottom: '10px' }}>
+              🍔 Finding meals that match your mood...
             </h2>
-            <p style={{ color: '#ccc', fontSize: '16px' }}>
-              {isLocationLoading 
-                ? 'Please allow location access to find nearby food options...'
-                : 'AI is analyzing your craving and finding nearby food options...'
-              }
+            <p style={{ color: '#64748b', fontSize: '16px' }}>
+              Our AI is analyzing your craving and searching for the perfect food matches in your area. Hang tight while we curate your personalized food journey!
             </p>
+            
+
             {isLoading && (
               <div style={{
                 marginTop: '20px',
@@ -289,38 +218,38 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
                     width: '12px',
                     height: '12px',
                     borderRadius: '50%',
-                    background: '#4f46e5',
+                    background: '#f97316',
                     animation: 'pulse 1.5s ease-in-out infinite'
                   }}></div>
                   <div style={{
                     width: '12px',
                     height: '12px',
                     borderRadius: '50%',
-                    background: '#4f46e5',
+                    background: '#f97316',
                     animation: 'pulse 1.5s ease-in-out infinite 0.2s'
                   }}></div>
                   <div style={{
                     width: '12px',
                     height: '12px',
                     borderRadius: '50%',
-                    background: '#4f46e5',
+                    background: '#f97316',
                     animation: 'pulse 1.5s ease-in-out infinite 0.4s'
                   }}></div>
                 </div>
                 <div style={{
                   fontSize: '12px',
-                  color: '#888',
+                  color: '#94a3b8',
                   textTransform: 'uppercase',
                   letterSpacing: '1px'
                 }}>
-                  Processing...
+                  Almost there...
                 </div>
               </div>
             )}
             <div style={{
               width: '200px',
               height: '4px',
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: '#fde68a',
               borderRadius: '2px',
               margin: '20px auto 0',
               overflow: 'hidden'
@@ -328,7 +257,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
               <div style={{
                 width: '30%',
                 height: '100%',
-                background: 'linear-gradient(90deg, #4f46e5, #7c3aed)',
+                background: 'linear-gradient(90deg, #f97316, #ea580c)',
                 borderRadius: '2px',
                 animation: 'loading 2s ease-in-out infinite'
               }}></div>
@@ -337,120 +266,85 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
         </div>
       )}
 
-      {/* Google Maps Status */}
-      {googleMapsError && (
-        <div style={{
-          background: 'rgba(245, 158, 11, 0.9)',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          backdropFilter: 'blur(10px)',
-          maxWidth: '500px',
-          textAlign: 'center',
-          fontSize: '14px',
-          lineHeight: '1.4',
-          margin: '0 auto 20px'
-        }}>
-          🗺️ {googleMapsError}
-        </div>
-      )}
 
-      {googleMapsLoaded && !googleMapsError && (
-        <div style={{
-          background: 'rgba(34, 197, 94, 0.9)',
-          color: 'white',
-          padding: '12px 24px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          border: '1px solid rgba(34, 197, 94, 0.3)',
-          backdropFilter: 'blur(10px)',
-          maxWidth: '500px',
-          textAlign: 'center',
-          fontSize: '14px',
-          lineHeight: '1.4',
-          margin: '0 auto 20px'
-        }}>
-          🗺️ Google Maps loaded - Location services available
-        </div>
-      )}
 
-      {/* Location Status */}
-      {locationPermission === 'granted' && userLocation && (
-        <div style={{
-          background: 'rgba(16, 185, 129, 0.9)',
-          color: 'white',
-          padding: '12px 24px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          backdropFilter: 'blur(10px)',
-          maxWidth: '500px',
-          textAlign: 'center',
-          fontSize: '14px',
-          lineHeight: '1.4',
-          margin: '0 auto 20px'
-        }}>
-          📍 Location access granted - Ready to find nearby food!
-        </div>
-      )}
+
 
       {/* Error Display */}
       {error && (
         <div style={{
-          background: 'rgba(220, 38, 38, 0.9)',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
+          background: 'rgba(254, 254, 250, 0.98)',
+          color: '#b91c1c',
+          padding: '18px 24px',
+          borderRadius: '18px',
           marginBottom: '20px',
-          border: '1px solid rgba(220, 38, 38, 0.3)',
-          backdropFilter: 'blur(10px)',
+          border: '3px solid #fecaca',
           maxWidth: '500px',
           textAlign: 'center',
-          fontSize: '14px',
+          fontSize: '15px',
           lineHeight: '1.4',
           position: 'relative',
-          margin: '0 auto 20px'
+          margin: '0 auto 20px',
+          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.08)',
+          fontWeight: '600',
+          textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
         }}>
           ⚠️ {error}
-          <button
-            onClick={() => setError(null)}
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              background: 'rgba(255, 255, 255, 0.2)',
-              border: 'none',
-              color: 'white',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            ×
-          </button>
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            justifyContent: 'center',
+            marginTop: '12px'
+          }}>
+            <button
+              onClick={() => setError(null)}
+              style={{
+                background: '#f8fafc',
+                border: '2px solid #e2e8f0',
+                color: '#64748b',
+                borderRadius: '12px',
+                padding: '10px 20px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                fontWeight: '500'
+              }}
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                border: 'none',
+                color: 'white',
+                borderRadius: '12px',
+                padding: '10px 20px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                fontWeight: '500',
+                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.3)'
+              }}
+            >
+              🔄 Refresh Page
+            </button>
+          </div>
         </div>
       )}
 
       {/* Location Permission Status */}
       {locationPermission === 'checking' && (
         <div style={{
-          background: 'rgba(59, 130, 246, 0.9)',
-          color: 'white',
-          padding: '24px',
-          borderRadius: '20px',
+          background: 'rgba(254, 254, 250, 0.98)',
+          color: '#0369a1',
+          padding: '36px',
+          borderRadius: '24px',
           marginBottom: '20px',
-          border: '1px solid rgba(59, 130, 246, 0.3)',
-          backdropFilter: 'blur(10px)',
+          border: '3px solid #bae6fd',
           maxWidth: '500px',
           textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)'
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
           <h3 style={{ marginBottom: '12px', fontSize: '18px' }}>Checking Location Access...</h3>
@@ -462,16 +356,15 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
 
       {locationPermission === 'denied' && (
         <div style={{
-          background: 'rgba(239, 68, 68, 0.9)',
-          color: 'white',
-          padding: '24px',
-          borderRadius: '20px',
+          background: 'rgba(254, 254, 250, 0.98)',
+          color: '#b91c1c',
+          padding: '36px',
+          borderRadius: '24px',
           marginBottom: '20px',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          backdropFilter: 'blur(10px)',
+          border: '3px solid #fecaca',
           maxWidth: '500px',
           textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)'
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚫</div>
           <h3 style={{ marginBottom: '12px', fontSize: '18px' }}>Location Access Denied</h3>
@@ -482,15 +375,16 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
           <button
             onClick={() => window.location.reload()}
             style={{
-              padding: '12px 24px',
-              fontSize: '14px',
+              padding: '14px 28px',
+              fontSize: '16px',
               fontWeight: '600',
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
               color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              borderRadius: '8px',
+              border: 'none',
+              borderRadius: '12px',
               cursor: 'pointer',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
             }}
           >
             🔄 Refresh Page
@@ -502,52 +396,82 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
       {locationPermission === 'granted' && userLocation && (
         <form onSubmit={handleSubmit} style={{
           display: 'flex',
-          gap: '12px',
+          flexDirection: 'column',
+          gap: '20px',
           alignItems: 'center',
-          background: 'rgba(255, 255, 255, 0.1)',
-          padding: '24px',
-          borderRadius: '20px',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          background: 'rgba(253, 246, 227, 0.98)',
+          padding: '32px',
+          borderRadius: '24px',
+          border: '2px solid #e8e6e0',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)',
           minWidth: '400px'
         }}>
+          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+            <h1 style={{
+              color: '#1e293b',
+              fontSize: '32px',
+              fontWeight: '700',
+              margin: '0 0 8px 0',
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+              letterSpacing: '-0.5px'
+            }}>
+              🍔 Food Chain Explorer
+            </h1>
+            <p style={{
+              color: '#475569',
+              fontSize: '16px',
+              margin: '0 auto',
+              lineHeight: '1.6',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+              maxWidth: '500px',
+              padding: '0 16px'
+            }}>
+              AI analyzes your cravings, finds nearby food options, and creates a chain of choices. Discover real locations where you can satisfy your hunger!
+            </p>
+          </div>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="What are you craving? (e.g., burger, pizza, tacos)"
-            disabled={isLoading}
+            disabled={isLoading || isLocationLoading}
             style={{
-              flex: 1,
-              padding: '16px 20px',
-              fontSize: '16px',
-              background: isLoading ? 'rgba(200, 200, 200, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              border: 'none',
-              borderRadius: '12px',
+              width: '100%',
+              padding: '20px 24px',
+              fontSize: '18px',
+              background: (isLoading || isLocationLoading) ? '#f8fafc' : '#ffffff',
+              border: '3px solid #d1d5db',
+              borderRadius: '16px',
               outline: 'none',
-              color: isLoading ? '#999' : '#333',
-              cursor: isLoading ? 'not-allowed' : 'text'
+              color: (isLoading || isLocationLoading) ? '#9ca3af' : '#111827',
+              cursor: (isLoading || isLocationLoading) ? 'not-allowed' : 'text',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.08)',
+              fontWeight: '500',
+              textShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
             }}
           />
           <button
             type="submit"
-            disabled={isLoading || !query.trim()}
+            disabled={isLoading || isLocationLoading || !query.trim()}
             style={{
-              padding: '16px 24px',
-              fontSize: '16px',
-              fontWeight: '600',
-              background: isLoading ? '#666' : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+              padding: '20px 36px',
+              fontSize: '18px',
+              fontWeight: '700',
+              background: (isLoading || isLocationLoading) ? '#9ca3af' : 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
+              borderRadius: '18px',
+              cursor: (isLoading || isLocationLoading) ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              minWidth: '120px',
-              opacity: isLoading ? 0.7 : 1
+              minWidth: '220px',
+              opacity: (isLoading || isLocationLoading) ? 0.7 : 1,
+              boxShadow: '0 6px 16px rgba(249, 115, 22, 0.4)',
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              letterSpacing: '0.5px'
             }}
           >
-            {isLoading ? '🔍 Searching Food Chain...' : 'Explore Food Chain'}
+            {(isLoading || isLocationLoading) ? '🔍 Finding your perfect meal...' : 'Explore Food Chain'}
           </button>
         </form>
       )}
@@ -555,16 +479,15 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
       {/* Location Permission Request - Show when permission is needed */}
       {locationPermission === 'prompt' && (
         <div style={{
-          background: 'rgba(245, 158, 11, 0.9)',
-          color: 'white',
-          padding: '24px',
-          borderRadius: '20px',
+          background: 'rgba(253, 246, 227, 0.98)',
+          color: '#c2410c',
+          padding: '36px',
+          borderRadius: '24px',
           marginBottom: '20px',
-          border: '1px solid rgba(245, 158, 11, 0.3)',
-          backdropFilter: 'blur(10px)',
+          border: '3px solid #fed7aa',
           maxWidth: '500px',
           textAlign: 'center',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.08)'
         }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📍</div>
           <h3 style={{ marginBottom: '12px', fontSize: '18px' }}>Location Access Required</h3>
@@ -576,19 +499,20 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
             onClick={requestLocationPermission}
             disabled={isLocationLoading}
             style={{
-              padding: '14px 28px',
+              padding: '16px 32px',
               fontSize: '16px',
               fontWeight: '600',
               background: isLocationLoading 
-                ? 'rgba(100, 100, 100, 0.5)' 
-                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                ? '#94a3b8' 
+                : 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '16px',
               cursor: isLocationLoading ? 'not-allowed' : 'pointer',
               transition: 'all 0.3s ease',
-              minWidth: '160px',
-              opacity: isLocationLoading ? 0.6 : 1
+              minWidth: '200px',
+              opacity: isLocationLoading ? 0.6 : 1,
+              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
             }}
             onMouseEnter={(e) => {
               if (!isLocationLoading) {

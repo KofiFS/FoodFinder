@@ -34,7 +34,7 @@ export class AIFoodService {
         
         For each food item, provide:
         - Name of the food
-        - Type (Make/Prepared/Premade)
+        
         - Price category (Budget/Mid-Range/Premium)
         - Location/store type where it might be found
         - Price range in USD
@@ -43,7 +43,7 @@ export class AIFoodService {
         [
           {
             "name": "Potato Chips",
-            "type": "Premade",
+    
             "category": "Budget",
             "location": "Grocery Store",
             "price": 2.99
