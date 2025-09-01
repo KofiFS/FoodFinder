@@ -1,21 +1,46 @@
 import { FoodOption, FoodChainResult, NearbyLocation } from '../types'
-import { AIFoodService } from './aiFoodService'
+import { AIRestaurantService } from './aiRestaurantService'
 import { GoogleMapsLoader } from './googleMapsLoader'
 import { GooglePlacesService } from './googlePlacesService'
 
 export class FoodChainService {
   /**
-   * Create a food chain based on user craving and location
+   * Create a restaurant chain based on user craving and location
    */
   static async createFoodChain(craving: string, userLocation: { lat: number; lng: number }): Promise<FoodChainResult> {
     try {
-      // Step 1: AI analyzes craving and generates food suggestions
-      console.log('🔍 Step 1: AI analyzing craving...')
-      const cravingAnalysis = await AIFoodService.analyzeCraving(craving)
+      // Step 1: AI + Google Places API to get real restaurant data
+      console.log('🔍 Step 1: Getting real restaurants from Google Places API...')
+      const realRestaurants = await AIRestaurantService.getInstance().getRealRestaurants(craving, userLocation)
       
-      // Step 2: Use all AI-generated food suggestions (no pre-validation needed)
-      console.log('✅ Step 2: Using AI food suggestions...')
-      const availableFoods = cravingAnalysis.foods
+      // Step 2: Convert real restaurant data to FoodOption format
+      console.log('✅ Step 2: Converting real restaurant data...')
+      const availableFoods: FoodOption[] = realRestaurants.map(restaurant => ({
+        id: restaurant.place_id,
+        name: restaurant.name, // Real restaurant name like "Starbucks", "Olive Garden"
+        location: restaurant.address, // Real address like "123 Main St, City, State"
+        price: this.getPriceFromLevel(restaurant.priceLevel), // Convert price level to approximate price
+        priceLevel: restaurant.priceLevel,
+        category: this.getCategoryFromPriceLevel(restaurant.priceLevel),
+        description: `${restaurant.types.join(', ')} - Rating: ${restaurant.rating}/5`,
+        confidence: this.calculateConfidence(restaurant.rating, restaurant.distance, restaurant.totalRatings),
+        reasoning: `Real restaurant found via Google Places API`,
+        cuisine: this.inferCuisineFromTypes(restaurant.types),
+        restaurantType: restaurant.types[0] || 'Restaurant',
+        imageUrl: null,
+        nutritionInfo: null,
+        // Add real restaurant data
+        realRestaurantData: {
+          place_id: restaurant.place_id,
+          address: restaurant.address,
+          rating: restaurant.rating,
+          totalRatings: restaurant.totalRatings,
+          openNow: restaurant.openNow,
+          website: restaurant.website,
+          phone: restaurant.phone,
+          types: restaurant.types
+        }
+      }))
       
       // Step 3: Load Google Maps if not already loaded
       console.log('🗺️ Step 3: Loading Google Maps...')
@@ -30,7 +55,7 @@ export class FoodChainService {
       
       return {
         foods: enhancedFoods,
-        reasoning: cravingAnalysis.reasoning,
+        reasoning: `Found ${realRestaurants.length} real restaurants matching your craving via Google Places API`,
         nearbyLocations
       }
       
@@ -161,6 +186,75 @@ export class FoodChainService {
       return `${Math.round(distance * 1000)}m`
     }
     return `${distance.toFixed(1)}km`
+  }
+
+  /**
+   * Convert price level to approximate dollar amount for display
+   */
+  private static getPriceFromLevel(priceLevel: number): number {
+    switch (priceLevel) {
+      case 1: return 8.99  // $ - Budget (under $10)
+      case 2: return 15.99 // $$ - Mid-Range ($10-20)
+      case 3: return 25.99 // $$$ - Premium ($20-30)
+      case 4: return 35.99 // $$$$ - Luxury ($30+)
+      default: return 15.99
+    }
+  }
+
+  /**
+   * Get category from price level
+   */
+  private static getCategoryFromPriceLevel(priceLevel: number): 'Budget' | 'Mid-Range' | 'Premium' {
+    if (priceLevel <= 1) return 'Budget'
+    if (priceLevel <= 2) return 'Mid-Range'
+    return 'Premium'
+  }
+
+  /**
+   * Calculate confidence score based on rating, distance, and popularity
+   */
+  private static calculateConfidence(rating: number, distance: number, totalRatings: number): number {
+    const ratingScore = (rating / 5) * 40 // Rating contributes 40% to confidence
+    const distanceScore = Math.max(0, (1 - (distance / 5000)) * 30) // Distance contributes 30%
+    const popularityScore = Math.min(30, (totalRatings / 100) * 30) // Popularity contributes 30%
+    
+    return Math.round(ratingScore + distanceScore + popularityScore)
+  }
+
+  /**
+   * Infer cuisine type from Google Places types
+   */
+  private static inferCuisineFromTypes(types: string[]): string {
+    const typeMap: { [key: string]: string } = {
+      'italian_restaurant': 'Italian',
+      'pizza_restaurant': 'Italian',
+      'chinese_restaurant': 'Chinese',
+      'japanese_restaurant': 'Japanese',
+      'mexican_restaurant': 'Mexican',
+      'indian_restaurant': 'Indian',
+      'thai_restaurant': 'Thai',
+      'vietnamese_restaurant': 'Vietnamese',
+      'french_restaurant': 'French',
+      'greek_restaurant': 'Greek',
+      'mediterranean_restaurant': 'Mediterranean',
+      'american_restaurant': 'American',
+      'fast_food': 'American',
+      'cafe': 'Cafe',
+      'bakery': 'Bakery',
+      'diner': 'American',
+      'barbecue_restaurant': 'BBQ',
+      'seafood_restaurant': 'Seafood',
+      'steakhouse': 'Steakhouse',
+      'sushi_restaurant': 'Japanese'
+    }
+
+    for (const type of types) {
+      if (typeMap[type]) {
+        return typeMap[type]
+      }
+    }
+
+    return 'American' // Default fallback
   }
 }
 

@@ -51,7 +51,7 @@ export interface NearbySearchRequest {
 
 export class GooglePlacesService {
   private static instance: GooglePlacesService
-  private readonly apiKey: string = 'YOUR_GOOGLE_PLACES_API_KEY' // User will need to set this
+  private readonly apiKey: string = import.meta.env.VITE_GOOGLE_PLACES_API_KEY || ''
 
   static getInstance(): GooglePlacesService {
     if (!GooglePlacesService.instance) {
@@ -248,6 +248,151 @@ export class GooglePlacesService {
       console.error('Error getting place details:', error)
       return { reviews: [], photos: [], website: '', phone: '' }
     }
+  }
+
+  // Enhanced restaurant search using multiple search strategies
+  async searchRestaurantsWithStrategy(
+    searchQueries: string[], 
+    userLocation: { lat: number; lng: number },
+    maxResults: number = 12
+  ): Promise<RestaurantResult[]> {
+    if (!this.isAvailable()) {
+      console.log('Google Places API not available, using fallback')
+      return this.getFallbackRestaurantResults(searchQueries[0] || 'food', userLocation)
+    }
+
+    try {
+      const service = new (window as any).google.maps.places.PlacesService(
+        document.createElement('div')
+      )
+
+      const allResults: RestaurantResult[] = []
+      
+      // Search with each query and combine results
+      for (const query of searchQueries.slice(0, 5)) { // Limit to 5 queries to avoid rate limits
+        try {
+          const searchRequest = {
+            location: new (window as any).google.maps.LatLng(userLocation.lat, userLocation.lng),
+            radius: 5000, // 5km radius
+            keyword: query,
+            type: 'restaurant'
+          }
+
+          const results = await this.performSearch(service, searchRequest)
+          allResults.push(...results)
+        } catch (error) {
+          console.error(`Search failed for query "${query}":`, error)
+        }
+      }
+
+      // Remove duplicates, filter quality, and limit results
+      const uniqueResults = this.removeDuplicates(allResults)
+      const qualityResults = this.filterQualityResults(uniqueResults)
+      
+      return qualityResults.slice(0, maxResults)
+
+    } catch (error) {
+      console.error('Error with enhanced restaurant search:', error)
+      return this.getFallbackRestaurantResults(searchQueries[0] || 'food', userLocation)
+    }
+  }
+
+  // Perform individual search
+  private async performSearch(service: any, searchRequest: any): Promise<RestaurantResult[]> {
+    return new Promise((resolve, reject) => {
+      service.nearbySearch(searchRequest, async (results: any[], status: any) => {
+        if (status === (window as any).google.maps.places.PlacesServiceStatus.OK) {
+          const restaurants = await Promise.all(
+            results.slice(0, 6).map(async (place) => {
+              const details = await this.getPlaceDetails(place.place_id)
+              
+              return {
+                place_id: place.place_id,
+                name: place.name,
+                address: place.vicinity || place.formatted_address,
+                location: {
+                  lat: place.geometry.location.lat(),
+                  lng: place.geometry.location.lng()
+                },
+                rating: place.rating || 0,
+                totalRatings: place.user_ratings_total || 0,
+                priceLevel: place.price_level || 0,
+                businessStatus: place.business_status,
+                openNow: place.opening_hours?.open_now || false,
+                distance: this.calculateDistance(
+                  searchRequest.location.lat(),
+                  searchRequest.location.lng(),
+                  place.geometry.location.lat(),
+                  place.geometry.location.lng()
+                ),
+                reviews: details.reviews || [],
+                photos: details.photos || [],
+                website: details.website || '',
+                phone: details.phone || '',
+                types: place.types || []
+              }
+            })
+          )
+
+          // Filter for quality restaurants
+          const filteredRestaurants = this.filterRestaurantTypes(restaurants)
+          resolve(filteredRestaurants)
+        } else {
+          console.error('Places search failed:', status)
+          resolve([])
+        }
+      })
+    })
+  }
+
+  // Remove duplicate restaurants
+  private removeDuplicates(restaurants: RestaurantResult[]): RestaurantResult[] {
+    const seen = new Set<string>()
+    return restaurants.filter(restaurant => {
+      if (seen.has(restaurant.place_id)) {
+        return false
+      }
+      seen.add(restaurant.place_id)
+      return true
+    })
+  }
+
+  // Filter for quality results
+  private filterQualityResults(restaurants: RestaurantResult[]): RestaurantResult[] {
+    return restaurants
+      .filter(restaurant => restaurant.businessStatus === 'OPERATIONAL')
+      .sort((a, b) => {
+        // Sort by rating (higher first), then by distance (closer first)
+        if (b.rating !== a.rating) {
+          return b.rating - a.rating
+        }
+        return a.distance - b.distance
+      })
+  }
+
+  // Filter restaurant types to focus on food establishments
+  private filterRestaurantTypes(restaurants: RestaurantResult[]): RestaurantResult[] {
+    return restaurants.filter(restaurant => {
+      const types = restaurant.types.map(t => t.toLowerCase())
+      const isRestaurant = types.some(type => 
+        type.includes('restaurant') || 
+        type.includes('food') || 
+        type.includes('cafe') || 
+        type.includes('bar') ||
+        type.includes('pizzeria') ||
+        type.includes('bakery') ||
+        type.includes('diner')
+      )
+      
+      const isNotGrocery = !types.some(type => 
+        type.includes('grocery') || 
+        type.includes('supermarket') || 
+        type.includes('convenience_store') ||
+        type.includes('department_store')
+      )
+
+      return isRestaurant && isNotGrocery
+    })
   }
 
   // Fallback restaurant results

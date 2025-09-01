@@ -1,110 +1,132 @@
-# Google Places API Setup Guide
+# Google Places API Setup
 
-To get real nearby store locations and accurate directions, you need to set up Google Places API. Follow these steps:
+## Overview
+This app now uses Google Places API to provide **real restaurant recommendations** instead of generic suggestions. Users will see actual restaurant names like "Starbucks", "Olive Garden", "Local Coffee Shop on Main St" instead of generic "Local Bakery".
 
-## 1. Get Google Places API Key
+## How It Works
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the following APIs:
-   - Places API
-   - Maps JavaScript API
-   - Geocoding API
-4. Create credentials (API Key)
-5. Restrict the API key to your domain for security
+### 1. AI Analysis
+- User enters a craving (e.g., "coffee", "pizza", "burgers")
+- OpenAI analyzes the craving and suggests restaurant types
+- AI generates search keywords for Google Places API
 
-## 2. Configure the API Key
+### 2. Google Places API Integration
+- Uses AI-generated keywords to search for real restaurants
+- Finds actual establishments with names, addresses, ratings
+- Filters for restaurants (excludes grocery stores)
+- Gets detailed info: phone, website, hours, reviews
 
-### Option A: Environment Variable
+### 3. Real Restaurant Display
+- Shows actual restaurant names (e.g., "Starbucks", "Panera Bread")
+- Displays real addresses and ratings
+- Includes phone numbers and websites when available
+- Shows "Open Now" status
+
+## Required API Keys
+
+### 1. OpenAI API Key
+```bash
+VITE_OPENAI_API_KEY=your_openai_api_key_here
+```
+
+### 2. Google Places API Key
+```bash
+VITE_GOOGLE_PLACES_API_KEY=your_google_places_api_key_here
+```
+
+### 3. Google Maps API Key (for map loading)
+```bash
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+
+## Environment Variables
 Create a `.env` file in the root directory:
-```
-REACT_APP_GOOGLE_PLACES_API_KEY=your_api_key_here
-```
 
-### Option B: Direct Configuration
-Update `src/services/googlePlacesService.ts`:
-```typescript
-private readonly apiKey: string = 'YOUR_ACTUAL_API_KEY_HERE'
+```env
+VITE_OPENAI_API_KEY=sk-your_openai_key_here
+VITE_GOOGLE_PLACES_API_KEY=your_google_places_key_here
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_key_here
 ```
 
-## 3. Load Google Maps in Your App
+## Google Places API Setup
 
-Add this to your `public/index.html` (replace YOUR_API_KEY):
-```html
-<script async defer 
-  src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
-</script>
-```
+### 1. Enable APIs in Google Cloud Console
+- Go to [Google Cloud Console](https://console.cloud.google.com/)
+- Create a new project or select existing one
+- Enable these APIs:
+  - **Places API** (for restaurant search)
+  - **Maps JavaScript API** (for map loading)
+  - **Geocoding API** (for address lookup)
 
-Or load dynamically in your app:
-```typescript
-import { loadGoogleMapsAPI } from './services/googlePlacesService'
+### 2. Create API Key
+- Go to "Credentials" in Google Cloud Console
+- Click "Create Credentials" → "API Key"
+- Copy the generated API key
 
-// In your main component
-useEffect(() => {
-  loadGoogleMapsAPI('YOUR_API_KEY')
-    .then(() => console.log('Google Maps loaded'))
-    .catch(error => console.error('Failed to load Google Maps:', error))
-}, [])
-```
+### 3. Restrict API Key (Recommended)
+- Click on your API key
+- Under "Application restrictions", select "HTTP referrers"
+- Add your domain (e.g., `localhost:5173/*` for development)
+- Under "API restrictions", select "Restrict key"
+- Choose only the APIs you need
 
-## 4. API Pricing
+## Features
 
-- **Free tier**: 2,500 requests per month
-- **Paid tier**: $0.017 per request (Place Search)
-- **Monthly billing**: Only charged for usage above free tier
+### Real Restaurant Data
+- ✅ **Actual restaurant names** (not generic types)
+- ✅ **Real addresses** with street names
+- ✅ **Phone numbers** when available
+- ✅ **Website URLs** for direct access
+- ✅ **Ratings and reviews** from Google
+- ✅ **Open/Closed status** in real-time
+- ✅ **Price levels** ($, $$, $$$, $$$$)
 
-## 5. Fallback Behavior
+### Smart Search
+- ✅ **AI-powered keyword generation** for better search results
+- ✅ **Restaurant type filtering** (excludes grocery stores)
+- ✅ **Distance-based sorting** (closer restaurants first)
+- ✅ **Rating-based relevance** (higher rated places prioritized)
+- ✅ **Multiple search strategies** for comprehensive results
 
-If Google Places API is not configured or fails:
-- App uses OpenStreetMap Nominatim API as fallback
-- Shows "None nearby" when no locations found
-- Provides general search instead of specific directions
+### User Experience
+- ✅ **Direct Google Maps integration** with place IDs
+- ✅ **One-click restaurant discovery**
+- ✅ **Real-time availability** (open/closed status)
+- ✅ **Contact information** (phone, website)
+- ✅ **Location-based recommendations**
 
-## 6. Testing
+## Example Results
 
-1. Allow location access when prompted
-2. Search for a food item (e.g., "burger")
-3. Click "Get Directions" on any food card
-4. Should show actual nearby locations with real distances
-5. Directions should lead to actual store locations
+**Before (Generic):**
+- "Local Bakery"
+- "Italian Restaurant"
+- "Coffee Shop"
 
-## 7. Troubleshooting
+**After (Real):**
+- "Panera Bread - 123 Main St"
+- "Olive Garden - 456 Oak Ave"
+- "Starbucks - 789 Pine Blvd"
 
-### "None nearby" showing for everything:
-- Check API key is correct and has Places API enabled
-- Verify your location is accurate
-- Try increasing search radius in `locationService.ts`
+## Troubleshooting
 
-### Directions leading nowhere:
-- Ensure Geocoding API is enabled
-- Check place_id is being returned correctly
-- Verify coordinates are accurate
+### API Key Issues
+- Ensure all environment variables are set
+- Check API key restrictions in Google Cloud Console
+- Verify APIs are enabled for your project
 
-### API errors in console:
-- Check API key restrictions and permissions
-- Ensure billing is enabled for your Google Cloud project
-- Verify daily/monthly quotas aren't exceeded
+### No Results
+- Check if Google Places API is enabled
+- Verify API key has proper permissions
+- Check browser console for error messages
 
-## 8. Security Best Practices
+### Rate Limiting
+- Google Places API has quotas
+- Consider implementing caching for repeated searches
+- Monitor API usage in Google Cloud Console
 
-1. **Restrict API key** to your specific domain(s)
-2. **Set quotas** to prevent unexpected charges
-3. **Monitor usage** in Google Cloud Console
-4. **Use environment variables** instead of hardcoding keys
-5. **Enable only needed APIs** to minimize attack surface
+## Development Notes
 
-## Example Working Configuration
-
-```typescript
-// In .env file
-REACT_APP_GOOGLE_PLACES_API_KEY=AIzaSyC4R6AN7SmxxdDjMHBVVW6g7hr...
-
-// In your component
-const apiKey = process.env.REACT_APP_GOOGLE_PLACES_API_KEY
-if (apiKey) {
-  loadGoogleMapsAPI(apiKey)
-}
-```
-
-Once configured, the app will show real nearby locations with accurate distances and provide actual directions to existing stores!
+- The app falls back to AI-only recommendations if Google Places API fails
+- All restaurant data is fetched in real-time
+- Results are cached during the session for better performance
+- Distance calculations use Haversine formula for accuracy

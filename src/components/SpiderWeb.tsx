@@ -4,7 +4,8 @@ import FoodCard from './FoodCard'
 import WebConnection from './WebConnection'
 import NutritionPopup from './NutritionPopup'
 import ComparisonModal from './ComparisonModal'
-import RestaurantDiscovery from './RestaurantDiscovery'
+import SmartRestaurantDiscovery from './SmartRestaurantDiscovery'
+import { SmartRestaurantService, RestaurantOption, SmartRestaurantResult } from '../services/smartRestaurantService'
 
 interface SpiderWebProps {
   foodOptions: FoodOption[]
@@ -44,7 +45,13 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   const [showRestaurantDiscovery, setShowRestaurantDiscovery] = useState(false)
   const [selectedFoodForDiscovery, setSelectedFoodForDiscovery] = useState<string>('')
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  
+  // Smart restaurant discovery states
+  const [restaurantResults, setRestaurantResults] = useState<Map<string, SmartRestaurantResult>>(new Map())
+  const [loadingRestaurants, setLoadingRestaurants] = useState<Set<string>>(new Set())
+  const [showRestaurantResults, setShowRestaurantResults] = useState<Set<string>>(new Set())
   const containerRef = useRef<HTMLDivElement>(null)
+  const smartRestaurantService = SmartRestaurantService.getInstance()
 
   // Update container dimensions on resize
   useEffect(() => {
@@ -78,10 +85,9 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
   
   // Filter options based on current type filter
   const getFilteredOptions = () => {
-    if (typeFilter === 'All') {
-      return foodOptions
-    }
-    return foodOptions.filter(option => option.type === typeFilter)
+    // Since we removed type distinctions, always return all options
+    // The typeFilter is now always 'All'
+    return foodOptions
   }
 
   const filteredOptions = getFilteredOptions()
@@ -468,6 +474,52 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
     setShowRestaurantDiscovery(true)
   }
 
+  // New smart restaurant discovery handler for inline results
+  const handleSmartRestaurantSearch = async (foodName: string) => {
+    if (!userLocation) {
+      alert('Location access required to find nearby restaurants')
+      return
+    }
+
+    // Toggle show/hide if already loaded
+    if (restaurantResults.has(foodName)) {
+      setShowRestaurantResults(prev => {
+        const newSet = new Set(prev)
+        if (newSet.has(foodName)) {
+          newSet.delete(foodName)
+        } else {
+          newSet.add(foodName)
+        }
+        return newSet
+      })
+      return
+    }
+
+    // Start loading
+    setLoadingRestaurants(prev => new Set(prev).add(foodName))
+    
+    try {
+      const result = await smartRestaurantService.findRestaurantsForCraving(foodName, userLocation)
+      
+      // Store results
+      setRestaurantResults(prev => new Map(prev).set(foodName, result))
+      
+      // Show results
+      setShowRestaurantResults(prev => new Set(prev).add(foodName))
+      
+    } catch (error) {
+      console.error('Smart restaurant search failed:', error)
+      alert('Failed to find restaurants. Please try again.')
+    } finally {
+      // Stop loading
+      setLoadingRestaurants(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(foodName)
+        return newSet
+      })
+    }
+  }
+
   // Get user location for restaurant discovery
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -493,24 +545,36 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       selectedForComparison.has(option.id)
     )
 
-    // Simple AI recommendation logic (can be enhanced with real AI later)
-    const getRecommendationScore = (option: FoodOption) => {
-      let score = 0
-      
-      // Cost factor (lower price = higher score)
-      const maxPrice = Math.max(...selectedOptions.map(o => o.price))
-      const minPrice = Math.min(...selectedOptions.map(o => o.price))
-      const priceScore = maxPrice > minPrice ? (maxPrice - option.price) / (maxPrice - minPrice) * 40 : 20
-      score += priceScore
+      // Simple AI recommendation logic (can be enhanced with real AI later)
+  const getRecommendationScore = (option: FoodOption) => {
+    let score = 0
+    
+    // Cost factor (lower price level = higher score)
+    const maxPriceLevel = Math.max(...selectedOptions.map(o => o.priceLevel || 2))
+    const minPriceLevel = Math.min(...selectedOptions.map(o => o.priceLevel || 2))
+    const priceScore = maxPriceLevel > minPriceLevel ? (maxPriceLevel - (option.priceLevel || 2)) / (maxPriceLevel - minPriceLevel) * 40 : 20
+    score += priceScore
 
-
-
-      // Category factor (Budget and Mid-Range get bonus)
-      if (option.category === 'Budget') score += 20
-      else if (option.category === 'Mid-Range') score += 15
-
-      return score
+    // Review rating factor (higher rating = higher score)
+    if (option.realRestaurantData?.rating) {
+      const ratingScore = (option.realRestaurantData.rating / 5) * 30
+      score += ratingScore
     }
+
+    // Match percentage factor (higher match = higher score)
+    if (option.confidence) {
+      const matchScore = (option.confidence / 100) * 30
+      score += matchScore
+    }
+
+    return score
+  }
+
+  // Function to open Google Maps with directions to restaurant
+  const openDirectionsToRestaurant = (restaurant: FoodOption) => {
+    const destination = restaurant.realRestaurantData ? restaurant.realRestaurantData.address : `${restaurant.name} ${restaurant.restaurantType || restaurant.location}`
+    window.open(`https://www.google.com/maps/dir//${encodeURIComponent(destination)}`, '_blank')
+  }
 
     const scores = selectedOptions.map(option => ({
       option,
@@ -553,8 +617,8 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       const centerOption = allOptions[Math.floor(Math.random() * allOptions.length)]
       const remainingOptions = allOptions.filter(option => option.id !== centerOption.id)
       
-      // Sort remaining options by price
-      const sortedOptions = remainingOptions.sort((a, b) => a.price - b.price)
+      // Sort remaining options by price level
+      const sortedOptions = remainingOptions.sort((a, b) => (a.priceLevel || 2) - (b.priceLevel || 2))
       
       // Get 2 cheaper and 2 more expensive options
       const cheaperOptions = sortedOptions.slice(0, 2)
@@ -567,24 +631,34 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
       }
     } else {
       // Dynamic state: selected center + 2 cheaper + 2 more expensive
-      const centerPrice = selectedCenter.price
+      const centerPriceLevel = selectedCenter.priceLevel || 2 // Default to $$ if no price level
       const remainingOptions = filteredOptions.filter(option => option.id !== selectedCenter.id)
       
-      // Get options cheaper than center
-      const cheaperOptions = remainingOptions
-        .filter(option => option.price < centerPrice)
-        .sort((a, b) => b.price - a.price) // Closest to center price first
+      // Get options strictly cheaper than center
+      let cheaperOptions = remainingOptions
+        .filter(option => option.priceLevel && option.priceLevel < centerPriceLevel)
+        .sort((a, b) => (b.priceLevel || 1) - (a.priceLevel || 1))
         .slice(0, 2)
       
-      // Get options more expensive than center
-      const moreExpensiveOptions = remainingOptions
-        .filter(option => option.price > centerPrice)
-        .sort((a, b) => a.price - b.price) // Closest to center price first
+      // Get options strictly more expensive than center
+      let moreExpensiveOptions = remainingOptions
+        .filter(option => option.priceLevel && option.priceLevel > centerPriceLevel)
+        .sort((a, b) => (a.priceLevel || 4) - (b.priceLevel || 4))
         .slice(0, 2)
       
-             // Don't fill cheaper slots with more expensive options - leave them blank if none exist
-       
-       // Don't fill more expensive slots with cheaper options - leave them blank if none exist
+      // If no strictly cheaper options, fall back to same price level
+      if (cheaperOptions.length === 0) {
+        cheaperOptions = remainingOptions
+          .filter(option => option.priceLevel && option.priceLevel === centerPriceLevel)
+          .slice(0, 2)
+      }
+      
+      // If no strictly more expensive options, fall back to same price level
+      if (moreExpensiveOptions.length === 0) {
+        moreExpensiveOptions = remainingOptions
+          .filter(option => option.priceLevel && option.priceLevel === centerPriceLevel)
+          .slice(0, 2)
+      }
       
       return {
         center: selectedCenter,
@@ -1132,7 +1206,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                  fontWeight: 'bold',
                  marginBottom: '10px'
                }}>
-                 💰 Cheaper
+                 {currentRecommendations.center.priceLevel && currentRecommendations.cheaper.length > 0 &&
+                   currentRecommendations.cheaper.some(option => option.priceLevel && option.priceLevel < (currentRecommendations.center.priceLevel || 2))
+                   ? '💰 Cheaper'
+                   : '🔄 Other Options'
+                 }
                </div>
                                {currentRecommendations.cheaper.map((option) => (
                   <div
@@ -1198,7 +1276,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         color: '#10b981',
                         marginTop: '5px'
                       }}>
-                        ${option.price}
+                        {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                       </div>
                       
                       {/* Action Buttons */}
@@ -1206,18 +1284,18 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         display: 'flex',
                         gap: '8px',
                         marginTop: '12px',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        flexWrap: 'wrap'
                       }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedNutritionOption(option)
-                            setShowNutritionPopup(true)
+                            openDirectionsToRestaurant(option)
                           }}
                           style={{
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            border: '1px solid rgba(16, 185, 129, 0.4)',
-                            color: '#10b981',
+                            background: 'rgba(59, 130, 246, 0.2)',
+                            border: '1px solid rgba(59, 130, 246, 0.4)',
+                            color: '#3b82f6',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             fontSize: '12px',
@@ -1225,39 +1303,250 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                             transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
                           }}
                         >
-                          🍎 Nutrition
+                          🗺️ Directions
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRestaurantDiscovery(option.name)
-                          }}
-                          style={{
-                            background: 'rgba(139, 92, 246, 0.2)',
-                            border: '1px solid rgba(139, 92, 246, 0.4)',
-                            color: '#8b5cf6',
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                          }}
-                        >
-                          🍽️ Find Restaurants
-                        </button>
+                        
+                        {/* Website Button - Only show if available */}
+                        {option.realRestaurantData?.website && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(option.realRestaurantData!.website, '_blank')
+                            }}
+                            style={{
+                              background: 'rgba(139, 92, 246, 0.2)',
+                              border: '1px solid rgba(139, 92, 246, 0.4)',
+                              color: '#8b5cf6',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                            }}
+                          >
+                            🌐 Website
+                          </button>
+                        )}
+                        
+                        {/* Call Button - Only show if available */}
+                        {option.realRestaurantData?.phone && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(`tel:${option.realRestaurantData!.phone}`, '_self')
+                            }}
+                            style={{
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              color: '#10b981',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                            }}
+                          >
+                            📞 Call
+                          </button>
+                        )}
                       </div>
+                      
+                      {/* Inline Restaurant Results */}
+                      {showRestaurantResults.has(option.name) && restaurantResults.has(option.name) && (
+                        <div style={{
+                          marginTop: '12px',
+                          background: 'rgba(255, 255, 255, 0.95)',
+                          border: '2px solid #e8e6e0',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          maxHeight: '300px',
+                          overflow: 'auto'
+                        }}>
+                          <h4 style={{
+                            margin: '0 0 12px 0',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#1e293b'
+                          }}>
+                            🍽️ Restaurants serving {option.name}
+                          </h4>
+                          
+                          {restaurantResults.get(option.name)?.restaurants.map((restaurant, idx) => (
+                            <div
+                              key={restaurant.id}
+                              style={{
+                                background: 'rgba(254, 243, 199, 0.6)',
+                                border: '1px solid #fde68a',
+                                borderRadius: '8px',
+                                padding: '12px',
+                                marginBottom: idx < (restaurantResults.get(option.name)?.restaurants.length || 0) - 1 ? '8px' : '0',
+                                fontSize: '12px'
+                              }}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start',
+                                marginBottom: '6px'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>
+                                    {restaurant.name}
+                                  </div>
+                                  <div style={{ color: '#64748b', fontSize: '11px' }}>
+                                    📍 {restaurant.address}
+                                  </div>
+                                </div>
+                                <div style={{
+                                  background: restaurant.confidence > 80 ? '#10b981' : '#f59e0b',
+                                  color: 'white',
+                                  padding: '2px 6px',
+                                  borderRadius: '6px',
+                                  fontSize: '10px',
+                                  fontWeight: '600'
+                                }}>
+                                  {restaurant.confidence}%
+                                </div>
+                              </div>
+                              
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                marginBottom: '8px',
+                                fontSize: '11px'
+                              }}>
+                                <span style={{ color: '#f97316' }}>⭐ {restaurant.rating}</span>
+                                <span style={{ color: '#10b981' }}>💰 {['$', '$$', '$$$', '$$$$'][restaurant.priceLevel - 1] || 'N/A'}</span>
+                                <span style={{ color: '#3b82f6' }}>
+                                  📏 {restaurant.distance < 1 ? `${Math.round(restaurant.distance * 1000)}m` : `${restaurant.distance.toFixed(1)}km`}
+                                </span>
+                                {restaurant.openNow && (
+                                  <span style={{ color: '#059669' }}>🟢 Open</span>
+                                )}
+                              </div>
+                              
+                              <div style={{
+                                display: 'flex',
+                                gap: '6px',
+                                flexWrap: 'wrap'
+                              }}>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    window.open(`https://www.google.com/maps/dir/?api=1&destination=place_id:${restaurant.place_id}`, '_blank')
+                                  }}
+                                  style={{
+                                    background: 'rgba(59, 130, 246, 0.2)',
+                                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                                    color: '#3b82f6',
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '10px',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  🗺️ Directions
+                                </button>
+                                
+                                {restaurant.website && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      window.open(restaurant.website, '_blank')
+                                    }}
+                                    style={{
+                                      background: 'rgba(139, 92, 246, 0.2)',
+                                      border: '1px solid rgba(139, 92, 246, 0.4)',
+                                      color: '#8b5cf6',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '10px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    🌐 Website
+                                  </button>
+                                )}
+                                
+                                {restaurant.phone && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      window.open(`tel:${restaurant.phone}`, '_self')
+                                    }}
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.2)',
+                                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                                      color: '#10b981',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '10px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    📞 Call
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )) || []}
+                          
+                          {restaurantResults.get(option.name)?.restaurants.length === 0 && (
+                            <div style={{
+                              textAlign: 'center',
+                              color: '#64748b',
+                              fontSize: '12px',
+                              padding: '16px'
+                            }}>
+                              No restaurants found for {option.name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Loading State */}
+                      {loadingRestaurants.has(option.name) && (
+                        <div style={{
+                          marginTop: '12px',
+                          textAlign: 'center',
+                          padding: '16px'
+                        }}>
+                          <div style={{
+                            width: '20px',
+                            height: '20px',
+                            border: '2px solid rgba(139, 92, 246, 0.3)',
+                            borderTop: '2px solid #8b5cf6',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            margin: '0 auto 8px'
+                          }} />
+                          <div style={{ color: '#64748b', fontSize: '11px' }}>
+                            🔍 Finding restaurants...
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1279,7 +1568,13 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                      justifyContent: 'center'
                    }}
                  >
-                   <div style={{ fontSize: '14px' }}>No cheaper options</div>
+                   <div style={{ fontSize: '14px' }}>
+                     {currentRecommendations.center.priceLevel && currentRecommendations.cheaper.length > 0 &&
+                       currentRecommendations.cheaper.some(option => option.priceLevel && option.priceLevel < (currentRecommendations.center.priceLevel || 2))
+                       ? 'No cheaper options'
+                       : 'No other options'
+                     }
+                   </div>
                  </div>
                ))}
              </div>
@@ -1350,33 +1645,54 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                    {currentRecommendations.center.name}
                  </div>
                  <div style={{ fontSize: '14px', opacity: 0.7, marginBottom: '8px' }}>
-                   {currentRecommendations.center.location}
+                   {currentRecommendations.center.realRestaurantData ? currentRecommendations.center.realRestaurantData.address : (currentRecommendations.center.restaurantType || currentRecommendations.center.location)}
                  </div>
                  <div style={{ 
                    fontSize: '24px', 
                    fontWeight: 'bold',
                    color: '#f59e0b'
                  }}>
-                   ${currentRecommendations.center.price}
+                   {currentRecommendations.center.priceLevel ? ['$', '$$', '$$$', '$$$$'][currentRecommendations.center.priceLevel - 1] : '$'}
                  </div>
+                 
+                 {/* Reviews and Open Status */}
+                 {currentRecommendations.center.realRestaurantData && (
+                   <div style={{
+                     fontSize: '12px',
+                     color: '#64748b',
+                     marginTop: '8px',
+                     display: 'flex',
+                     flexDirection: 'column',
+                     gap: '4px'
+                   }}>
+                     <div style={{ color: '#3b82f6' }}>
+                       ⭐ {currentRecommendations.center.realRestaurantData.rating}/5 ({currentRecommendations.center.realRestaurantData.totalRatings} reviews)
+                     </div>
+                     {currentRecommendations.center.realRestaurantData.openNow && (
+                       <div style={{ color: '#10b981' }}>
+                         🟢 Open Now
+                       </div>
+                     )}
+                   </div>
+                 )}
                  
                  {/* Action Buttons */}
                  <div style={{
                    display: 'flex',
                    gap: '8px',
                    marginTop: '12px',
-                   justifyContent: 'center'
+                   justifyContent: 'center',
+                   flexWrap: 'wrap'
                  }}>
                    <button
                      onClick={(e) => {
                        e.stopPropagation()
-                       setSelectedNutritionOption(currentRecommendations.center)
-                       setShowNutritionPopup(true)
+                       openDirectionsToRestaurant(currentRecommendations.center)
                      }}
                      style={{
-                       background: 'rgba(16, 185, 129, 0.2)',
-                       border: '1px solid rgba(16, 185, 129, 0.4)',
-                       color: '#10b981',
+                       background: 'rgba(59, 130, 246, 0.2)',
+                       border: '1px solid rgba(59, 130, 246, 0.4)',
+                       color: '#3b82f6',
                        padding: '6px 12px',
                        borderRadius: '8px',
                        fontSize: '12px',
@@ -1384,40 +1700,251 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                        transition: 'all 0.2s ease'
                      }}
                      onMouseEnter={(e) => {
-                       e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                       e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
                      }}
                      onMouseLeave={(e) => {
-                       e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                       e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
                      }}
                    >
-                     🍎 Nutrition
+                     🗺️ Directions
                    </button>
-
-                   <button
-                     onClick={(e) => {
-                       e.stopPropagation()
-                       handleRestaurantDiscovery(currentRecommendations.center.name)
-                     }}
-                     style={{
-                       background: 'rgba(139, 92, 246, 0.2)',
-                       border: '1px solid rgba(139, 92, 246, 0.4)',
-                       color: '#8b5cf6',
-                       padding: '6px 12px',
-                       borderRadius: '8px',
-                       fontSize: '12px',
-                       cursor: 'pointer',
-                       transition: 'all 0.2s ease'
-                     }}
-                     onMouseEnter={(e) => {
-                       e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                     }}
-                     onMouseLeave={(e) => {
-                       e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                     }}
-                   >
-                     🍽️ Find Restaurants
-                   </button>
+                   
+                   {/* Website Button - Only show if available */}
+                   {currentRecommendations.center.realRestaurantData?.website && (
+                     <button
+                       onClick={(e) => {
+                         e.stopPropagation()
+                         window.open(currentRecommendations.center.realRestaurantData!.website, '_blank')
+                       }}
+                       style={{
+                         background: 'rgba(139, 92, 246, 0.2)',
+                         border: '1px solid rgba(139, 92, 246, 0.4)',
+                         color: '#8b5cf6',
+                         padding: '6px 12px',
+                         borderRadius: '8px',
+                         fontSize: '12px',
+                         cursor: 'pointer',
+                         transition: 'all 0.2s ease'
+                       }}
+                       onMouseEnter={(e) => {
+                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                       }}
+                       onMouseLeave={(e) => {
+                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                       }}
+                     >
+                       🌐 Website
+                     </button>
+                   )}
+                   
+                   {/* Call Button - Only show if available */}
+                   {currentRecommendations.center.realRestaurantData?.phone && (
+                     <button
+                       onClick={(e) => {
+                         e.stopPropagation()
+                         window.open(`tel:${currentRecommendations.center.realRestaurantData!.phone}`, '_self')
+                       }}
+                       style={{
+                         background: 'rgba(16, 185, 129, 0.2)',
+                         border: '1px solid rgba(16, 185, 129, 0.4)',
+                         color: '#10b981',
+                         padding: '6px 12px',
+                         borderRadius: '8px',
+                         fontSize: '12px',
+                         cursor: 'pointer',
+                         transition: 'all 0.2s ease'
+                       }}
+                       onMouseEnter={(e) => {
+                         e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                       }}
+                       onMouseLeave={(e) => {
+                         e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                       }}
+                     >
+                       📞 Call
+                     </button>
+                   )}
                  </div>
+                 
+                 {/* Inline Restaurant Results for Current Choice */}
+                 {showRestaurantResults.has(currentRecommendations.center.name) && restaurantResults.has(currentRecommendations.center.name) && (
+                   <div style={{
+                     marginTop: '16px',
+                     background: 'rgba(255, 255, 255, 0.95)',
+                     border: '2px solid #e8e6e0',
+                     borderRadius: '12px',
+                     padding: '16px',
+                     maxHeight: '350px',
+                     overflow: 'auto'
+                   }}>
+                     <h4 style={{
+                       margin: '0 0 12px 0',
+                       fontSize: '16px',
+                       fontWeight: '600',
+                       color: '#1e293b',
+                       textAlign: 'center'
+                     }}>
+                       🍽️ Restaurants serving {currentRecommendations.center.name}
+                     </h4>
+                     
+                     {restaurantResults.get(currentRecommendations.center.name)?.restaurants.map((restaurant, idx) => (
+                       <div
+                         key={restaurant.id}
+                         style={{
+                           background: 'rgba(254, 243, 199, 0.6)',
+                           border: '1px solid #fde68a',
+                           borderRadius: '8px',
+                           padding: '12px',
+                           marginBottom: idx < (restaurantResults.get(currentRecommendations.center.name)?.restaurants.length || 0) - 1 ? '8px' : '0',
+                           fontSize: '13px'
+                         }}
+                       >
+                         <div style={{
+                           display: 'flex',
+                           justifyContent: 'space-between',
+                           alignItems: 'flex-start',
+                           marginBottom: '6px'
+                         }}>
+                           <div style={{ flex: 1 }}>
+                             <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '2px' }}>
+                               {restaurant.name}
+                             </div>
+                             <div style={{ color: '#64748b', fontSize: '12px' }}>
+                               📍 {restaurant.address}
+                             </div>
+                           </div>
+                           <div style={{
+                             background: restaurant.confidence > 80 ? '#10b981' : '#f59e0b',
+                             color: 'white',
+                             padding: '3px 8px',
+                             borderRadius: '6px',
+                             fontSize: '11px',
+                             fontWeight: '600'
+                           }}>
+                             {restaurant.confidence}%
+                           </div>
+                         </div>
+                         
+                         <div style={{
+                           display: 'flex',
+                           alignItems: 'center',
+                           gap: '10px',
+                           marginBottom: '8px',
+                           fontSize: '12px'
+                         }}>
+                           <span style={{ color: '#f97316' }}>⭐ {restaurant.rating}</span>
+                           <span style={{ color: '#10b981' }}>💰 {['$', '$$', '$$$', '$$$$'][restaurant.priceLevel - 1] || 'N/A'}</span>
+                           <span style={{ color: '#3b82f6' }}>
+                             📏 {restaurant.distance < 1 ? `${Math.round(restaurant.distance * 1000)}m` : `${restaurant.distance.toFixed(1)}km`}
+                           </span>
+                           {restaurant.openNow && (
+                             <span style={{ color: '#059669' }}>🟢 Open</span>
+                           )}
+                         </div>
+                         
+                         <div style={{
+                           display: 'flex',
+                           gap: '8px',
+                           flexWrap: 'wrap'
+                         }}>
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation()
+                               window.open(`https://www.google.com/maps/dir/?api=1&destination=place_id:${restaurant.place_id}`, '_blank')
+                             }}
+                             style={{
+                               background: 'rgba(59, 130, 246, 0.2)',
+                               border: '1px solid rgba(59, 130, 246, 0.4)',
+                               color: '#3b82f6',
+                               padding: '6px 10px',
+                               borderRadius: '6px',
+                               fontSize: '11px',
+                               cursor: 'pointer',
+                               fontWeight: '500'
+                             }}
+                           >
+                             🗺️ Directions
+                           </button>
+                           
+                           {restaurant.website && (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation()
+                                 window.open(restaurant.website, '_blank')
+                               }}
+                               style={{
+                                 background: 'rgba(139, 92, 246, 0.2)',
+                                 border: '1px solid rgba(139, 92, 246, 0.4)',
+                                 color: '#8b5cf6',
+                                 padding: '6px 10px',
+                                 borderRadius: '6px',
+                                 fontSize: '11px',
+                                 cursor: 'pointer',
+                                 fontWeight: '500'
+                               }}
+                             >
+                               🌐 Website
+                             </button>
+                           )}
+                           
+                           {restaurant.phone && (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation()
+                                 window.open(`tel:${restaurant.phone}`, '_self')
+                               }}
+                               style={{
+                                 background: 'rgba(16, 185, 129, 0.2)',
+                                 border: '1px solid rgba(16, 185, 129, 0.4)',
+                                 color: '#10b981',
+                                 padding: '6px 10px',
+                                 borderRadius: '6px',
+                                 fontSize: '11px',
+                                 cursor: 'pointer',
+                                 fontWeight: '500'
+                               }}
+                             >
+                               📞 Call
+                             </button>
+                           )}
+                         </div>
+                       </div>
+                     )) || []}
+                     
+                     {restaurantResults.get(currentRecommendations.center.name)?.restaurants.length === 0 && (
+                       <div style={{
+                         textAlign: 'center',
+                         color: '#64748b',
+                         fontSize: '13px',
+                         padding: '16px'
+                       }}>
+                         No restaurants found for {currentRecommendations.center.name}
+                       </div>
+                     )}
+                   </div>
+                 )}
+                 
+                 {/* Loading State for Current Choice */}
+                 {loadingRestaurants.has(currentRecommendations.center.name) && (
+                   <div style={{
+                     marginTop: '16px',
+                     textAlign: 'center',
+                     padding: '16px'
+                   }}>
+                     <div style={{
+                       width: '24px',
+                       height: '24px',
+                       border: '3px solid rgba(139, 92, 246, 0.3)',
+                       borderTop: '3px solid #8b5cf6',
+                       borderRadius: '50%',
+                       animation: 'spin 1s linear infinite',
+                       margin: '0 auto 8px'
+                     }} />
+                     <div style={{ color: '#64748b', fontSize: '12px' }}>
+                       🔍 Finding restaurants...
+                     </div>
+                   </div>
+                 )}
                </div>
             </div>
             
@@ -1435,7 +1962,11 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                  marginBottom: '10px',
                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                }}>
-                 👑 More Expensive
+                 {currentRecommendations.center.priceLevel && currentRecommendations.moreExpensive.length > 0 &&
+                   currentRecommendations.moreExpensive.some(option => option.priceLevel && option.priceLevel > (currentRecommendations.center.priceLevel || 2))
+                   ? '👑 More Expensive'
+                   : '🔄 Other Options'
+                 }
                </div>
                                {currentRecommendations.moreExpensive.map((option) => (
                   <div
@@ -1501,7 +2032,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         color: '#dc2626',
                         marginTop: '5px'
                       }}>
-                        ${option.price}
+                        {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                       </div>
                       
                       {/* Action Buttons */}
@@ -1509,18 +2040,18 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                         display: 'flex',
                         gap: '8px',
                         marginTop: '12px',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        flexWrap: 'wrap'
                       }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedNutritionOption(option)
-                            setShowNutritionPopup(true)
+                            openDirectionsToRestaurant(option)
                           }}
                           style={{
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            border: '1px solid rgba(16, 185, 129, 0.4)',
-                            color: '#10b981',
+                            background: 'rgba(59, 130, 246, 0.2)',
+                            border: '1px solid rgba(59, 130, 246, 0.4)',
+                            color: '#3b82f6',
                             padding: '6px 12px',
                             borderRadius: '8px',
                             fontSize: '12px',
@@ -1528,38 +2059,70 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                             transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)'
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)'
                           }}
                         >
-                          🍎 Nutrition
+                          🗺️ Directions
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRestaurantDiscovery(option.name)
-                          }}
-                          style={{
-                            background: 'rgba(139, 92, 246, 0.2)',
-                            border: '1px solid rgba(139, 92, 246, 0.4)',
-                            color: '#8b5cf6',
-                            padding: '6px 12px',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
-                          }}
-                        >
-                          🍽️ Find Restaurants
-                        </button>
+                        
+                        {/* Website Button - Only show if available */}
+                        {option.realRestaurantData?.website && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(option.realRestaurantData!.website, '_blank')
+                            }}
+                            style={{
+                              background: 'rgba(139, 92, 246, 0.2)',
+                              border: '1px solid rgba(139, 92, 246, 0.4)',
+                              color: '#8b5cf6',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.3)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                            }}
+                          >
+                            🌐 Website
+                          </button>
+                        )}
+                        
+                        {/* Call Button - Only show if available */}
+                        {option.realRestaurantData?.phone && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(`tel:${option.realRestaurantData!.phone}`, '_self')
+                            }}
+                            style={{
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              border: '1px solid rgba(16, 185, 129, 0.4)',
+                              color: '#10b981',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'
+                            }}
+                          >
+                            📞 Call
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1582,7 +2145,13 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
                      justifyContent: 'center'
                    }}
                  >
-                   <div style={{ fontSize: '14px' }}>No more expensive options</div>
+                   <div style={{ fontSize: '14px' }}>
+                     {currentRecommendations.center.priceLevel && currentRecommendations.moreExpensive.length > 0 &&
+                       currentRecommendations.moreExpensive.some(option => option.priceLevel && option.priceLevel > (currentRecommendations.center.priceLevel || 2))
+                       ? 'No more expensive options'
+                       : 'No other options'
+                     }
+                   </div>
                  </div>
                ))}
              </div>
@@ -1603,7 +2172,7 @@ const SpiderWeb: React.FC<SpiderWebProps> = ({
 
       {/* Restaurant Discovery Modal */}
       {showRestaurantDiscovery && selectedFoodForDiscovery && (
-        <RestaurantDiscovery
+        <SmartRestaurantDiscovery
           foodName={selectedFoodForDiscovery}
           userLocation={userLocation}
           onClose={() => {
@@ -1633,6 +2202,41 @@ const zoomButtonStyle: React.CSSProperties = {
   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
   fontWeight: '600',
   transition: 'all 0.2s ease'
+}
+
+// Add CSS animations for restaurant results
+const restaurantAnimationStyles = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .restaurant-results {
+    animation: fadeInUp 0.5s ease-out;
+  }
+  
+  .restaurant-card {
+    animation: fadeInUp 0.3s ease-out;
+  }
+`
+
+// Inject styles into document head
+if (typeof document !== 'undefined' && !document.getElementById('restaurant-animations')) {
+  const style = document.createElement('style')
+  style.id = 'restaurant-animations'
+  style.textContent = restaurantAnimationStyles
+  document.head.appendChild(style)
 }
 
 export default SpiderWeb

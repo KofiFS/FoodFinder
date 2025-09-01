@@ -184,7 +184,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                     }}
                   >
-                    🏆 AI RECOMMENDED
+                    🏆 RECOMMENDED
                   </div>
                 )}
 
@@ -231,28 +231,14 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       border: '1px solid #e2e8f0'
                     }}>
                       <div style={{ color: '#10b981', fontSize: '20px', fontWeight: '700' }}>
-                        ${option.price}
+                        {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                       </div>
                       <div style={{ color: '#64748b', fontSize: '11px' }}>
                         Price
                       </div>
                     </div>
 
-                    {/* Type */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.8)',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      textAlign: 'center',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                      <div style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '600' }}>
-                        {option.type}
-                      </div>
-                      <div style={{ color: '#64748b', fontSize: '11px' }}>
-                        Type
-                      </div>
-                    </div>
+                    {/* Type - Removed since we no longer have type distinctions */}
 
                     {/* Category */}
                     <div style={{
@@ -274,21 +260,42 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Health Score */}
-                    <div style={{
-                      background: 'rgba(255, 255, 255, 0.8)',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      textAlign: 'center',
-                      border: '1px solid #e2e8f0'
-                    }}>
-                                              <div style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600' }}>
-                          70%
+                    {/* Review Score */}
+                    {option.realRestaurantData && (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        textAlign: 'center',
+                        border: '1px solid #e2e8f0',
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: '600' }}>
+                          ⭐ {option.realRestaurantData.rating}/5
                         </div>
-                      <div style={{ color: '#64748b', fontSize: '11px' }}>
-                        Health Score
+                        <div style={{ color: '#64748b', fontSize: '11px' }}>
+                          Rating
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Match Percentage */}
+                    {option.confidence && (
+                      <div style={{
+                        background: 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        textAlign: 'center',
+                        border: '1px solid #e2e8f0'
+                      }}>
+                        <div style={{ color: '#10b981', fontSize: '14px', fontWeight: '600' }}>
+                          {option.confidence}% match
+                        </div>
+                        <div style={{ color: '#64748b', fontSize: '11px' }}>
+                          Match
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -296,41 +303,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
           })}
         </div>
 
-        {/* Nutrition Comparison Button */}
-        <div style={{
-          textAlign: 'center',
-          marginBottom: '30px'
-        }}>
-          <button
-            onClick={() => setShowNutritionComparison(true)}
-            style={{
-              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              padding: '16px 24px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              margin: '0 auto'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(34, 197, 94, 0.3)'
-            }}
-          >
-            🍎 Nutrition Comparison
-          </button>
-        </div>
+
 
         {/* AI Analysis Summary */}
         {aiRecommendation && (
@@ -357,10 +330,10 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
               margin: 0,
               lineHeight: '1.5'
             }}>
-              Based on nutrition quality, cost-effectiveness, and preparation type, 
+              Based on review ratings, match percentage, and price level, 
               <strong style={{ color: '#f59e0b' }}> {selectedOptions.find(o => o.id === aiRecommendation)?.name}</strong> 
-              {' '}offers the best overall value. It provides optimal balance of health benefits, 
-              affordability, and convenience for your needs.
+              {' '}offers the best overall value. It provides optimal balance of customer satisfaction, 
+              craving match, and affordability for your needs.
             </p>
           </div>
         )}

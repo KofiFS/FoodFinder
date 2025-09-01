@@ -276,7 +276,7 @@ const FoodCard: React.FC<FoodCardProps> = ({
             marginBottom: '16px'
           }}
         >
-          ${option.price.toFixed(2)}
+          {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
         </div>
       </div>
 

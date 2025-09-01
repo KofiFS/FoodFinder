@@ -3,12 +3,26 @@ export interface FoodOption {
   name: string
   location: string
   price: number
-
+  priceLevel?: number // Restaurant price level (1-4)
   category: 'Budget' | 'Mid-Range' | 'Premium'
   description?: string
   imageUrl?: string | null
   nutritionInfo?: any | null
   nearbyLocations?: NearbyLocation[]
+  confidence?: number // How well it matches the craving
+  reasoning?: string // Why this restaurant is recommended
+  cuisine?: string // Type of cuisine
+  restaurantType?: string // Type of restaurant
+  realRestaurantData?: {
+    place_id: string
+    address: string
+    rating: number
+    totalRatings: number
+    openNow: boolean
+    website?: string
+    phone?: string
+    types: string[]
+  }
 }
 
 export interface NearbyLocation {

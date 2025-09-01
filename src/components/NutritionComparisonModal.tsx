@@ -229,7 +229,7 @@ const NutritionComparisonModal: React.FC<NutritionComparisonModalProps> = ({
                     fontWeight: '600',
                     marginTop: '6px'
                   }}>
-                    ${option.price}
+                    {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
                   </div>
                 </div>
 
