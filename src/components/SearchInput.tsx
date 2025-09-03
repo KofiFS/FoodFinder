@@ -196,7 +196,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch, isLoading, googleMa
               margin: '0 auto 20px'
             }}></div>
             <h2 style={{ color: '#1e293b', marginBottom: '10px' }}>
-              🍔 Finding meals that match your mood...
+                                      🍔 Finding places that suit your craving...
             </h2>
             <p style={{ color: '#64748b', fontSize: '16px' }}>
               Analyzing your craving and searching for the perfect food matches in your area. Hang tight while we curate your personalized food journey!

@@ -14,6 +14,18 @@ export interface RestaurantOption {
   place_id: string
   phone?: string
   website?: string
+  realRestaurantData?: {
+    place_id: string
+    address: string
+    rating: number
+    totalRatings: number
+    openNow: boolean
+    website?: string
+    phone?: string
+    types: string[]
+    reviews?: Array<{ author_name: string; rating: number; text: string }>
+    photos?: Array<any>
+  }
 }
 
 export interface SmartRestaurantResult {
@@ -75,7 +87,19 @@ export class SmartRestaurantService {
           reasoning: this.getRestaurantReasoning(restaurant, cravingAnalysis),
           place_id: restaurant.place_id,
           phone: restaurant.phone,
-          website: restaurant.website
+          website: restaurant.website,
+          realRestaurantData: {
+            place_id: restaurant.place_id,
+            address: restaurant.address,
+            rating: restaurant.rating,
+            totalRatings: restaurant.totalRatings,
+            openNow: restaurant.openNow,
+            website: restaurant.website,
+            phone: restaurant.phone,
+            types: restaurant.types,
+            reviews: restaurant.reviews,
+            photos: restaurant.photos
+          }
         }
       })
 

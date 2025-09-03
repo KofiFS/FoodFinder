@@ -49,6 +49,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
 
 
 
+
+
   return (
     <div
       style={{
@@ -73,7 +75,8 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
           border: '3px solid #e8e6e0',
           borderRadius: '24px',
           padding: '30px',
-          maxWidth: '1200px',
+          maxWidth: '1400px',
+          minWidth: '1200px',
           minHeight: '900px',
           backdropFilter: 'blur(20px)',
           position: 'relative',
@@ -127,7 +130,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             margin: '0 0 10px 0',
             textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
           }}>
-            ⚖️ Food Comparison
+            Food Comparison
           </h2>
           <p style={{
             color: '#475569',
@@ -154,6 +157,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
             return (
               <div
                 key={option.id}
+                onClick={() => onDiscoverClick?.(option)}
                 style={{
                   background: isRecommended 
                     ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%)'
@@ -165,7 +169,16 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   padding: '20px',
                   position: 'relative',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.15)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)'
                 }}
               >
                 {/* AI Recommendation Badge */}
@@ -186,7 +199,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                     }}
                   >
-                    🏆 RECOMMENDED
+                    RECOMMENDED
                   </div>
                 ) : (
                   <div
@@ -201,7 +214,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       visibility: 'hidden'
                     }}
                   >
-                    🏆 RECOMMENDED
+                    RECOMMENDED
                   </div>
                 )}
 
@@ -213,7 +226,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                     gap: '10px',
                     marginBottom: '12px'
                   }}>
-                    <span style={{ fontSize: '24px' }}>🍔</span>
+
                     <h3 style={{
                       color: isRecommended ? '#f59e0b' : '#1e293b',
                       fontSize: '18px',
@@ -228,9 +241,20 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                   <div style={{
                     color: '#64748b',
                     fontSize: '14px',
-                    marginBottom: '15px'
+                    marginBottom: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}>
-                    📍 {option.location}
+                    {option.realRestaurantData ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          ({option.realRestaurantData.totalRatings} reviews)
+                        </span>
+                      </div>
+                    ) : (
+                      'No rating available'
+                    )}
                   </div>
 
                   {/* Stats Grid */}
@@ -289,7 +313,7 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                         marginBottom: '8px'
                       }}>
                         <div style={{ color: '#3b82f6', fontSize: '14px', fontWeight: '600' }}>
-                          ⭐ {option.realRestaurantData.rating}/5
+                          {option.realRestaurantData.rating}/5
                         </div>
                         <div style={{ color: '#64748b', fontSize: '11px' }}>
                           Rating
@@ -315,29 +339,6 @@ const ComparisonModal: React.FC<ComparisonModalProps> = ({
                       </div>
                     )}
                     
-                    {/* Discover Button */}
-                    <div style={{ gridColumn: '1 / span 2' }}>
-                      <button
-                        onClick={() => onDiscoverClick && onDiscoverClick(option)}
-                        style={{
-                          width: '100%',
-                          background: isRecommended ? '#14b8a6' : '#047857',
-                          border: isRecommended ? '1.5px solid #0f766e' : '1.5px solid #065f46',
-                          color: 'white',
-                          padding: '10px 16px',
-                          borderRadius: '10px',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          boxShadow: isRecommended ? '0 2px 8px rgba(20, 184, 166, 0.08)' : '0 2px 8px rgba(4, 120, 87, 0.08)'
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = isRecommended ? '#0d9488' : '#065f46' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = isRecommended ? '#14b8a6' : '#047857' }}
-                      >
-                        🔍 Discover
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>

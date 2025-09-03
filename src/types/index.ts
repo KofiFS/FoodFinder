@@ -23,6 +23,7 @@ export interface FoodOption {
     phone?: string
     types: string[]
     reviews?: Array<{ author_name: string; rating: number; text: string }>
+    photos?: Array<any>
   }
 }
 

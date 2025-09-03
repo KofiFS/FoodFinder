@@ -94,6 +94,28 @@ const FoodCard: React.FC<FoodCardProps> = ({
   }
 
   
+  // Function to get photo URL from Google Places photo (supports both old and new API)
+  const getPhotoUrl = (photo: any, maxWidth: number = 400): string => {
+    if (!photo) return ''
+    
+    try {
+      // Check if it's the old API format (has getUrl method)
+      if (photo.getUrl && typeof photo.getUrl === 'function') {
+        return photo.getUrl({ maxWidth })
+      }
+      
+      // Check if it's the new API format (has name property)
+      if (photo.name) {
+        const apiKey = (import.meta as any).env.VITE_GOOGLE_PLACES_API_KEY || ''
+        return `https://places.googleapis.com/v1/${photo.name}/media?key=${apiKey}&maxWidthPx=${maxWidth}`
+      }
+      
+      return ''
+    } catch (error) {
+      console.error('Error getting photo URL:', error)
+      return ''
+    }
+  }
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -102,6 +124,60 @@ const FoodCard: React.FC<FoodCardProps> = ({
       case 'Premium': return '#ef4444'
       default: return '#6b7280'
     }
+  }
+
+  const renderStars = (rating: number) => {
+    const stars = []
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    const hasQuarterStar = rating % 1 >= 0.25 && rating % 1 < 0.5
+
+    // Add full stars
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <img
+          key={`full-${i}`}
+          src="/src/images/Star_Full.png"
+          alt="Full star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    }
+
+    // Add half or quarter star if needed
+    if (hasHalfStar) {
+      stars.push(
+        <img
+          key="half"
+          src="/src/images/Star_Half.png"
+          alt="Half star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    } else if (hasQuarterStar) {
+      stars.push(
+        <img
+          key="quarter"
+          src="/src/images/Star_Quarter.png"
+          alt="Quarter star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    }
+
+    return stars
   }
 
 
@@ -151,82 +227,54 @@ const FoodCard: React.FC<FoodCardProps> = ({
             onComparisonToggle(option.id)
           }}
         >
-          <div
-            style={{
-              width: '24px',
-              height: '24px',
-              borderRadius: '6px',
-              border: `2px solid ${isSelectedForComparison ? '#f59e0b' : '#d1d5db'}`,
-              background: isSelectedForComparison 
-                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                : 'rgba(255, 255, 255, 0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              opacity: 1,
-              transition: 'all 0.2s ease',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            {isSelectedForComparison && (
-              <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
-            )}
+          <div style={{
+            cursor: 'pointer'
+          }}>
+            <img 
+              src={isSelectedForComparison ? '/src/images/Checked.png' : '/src/images/NotChecked.png'}
+              alt={isSelectedForComparison ? 'Selected' : 'Not selected'}
+              style={{
+                width: '24px',
+                height: '24px',
+                objectFit: 'contain'
+              }}
+            />
           </div>
         </div>
       )}
 
 
 
-      {/* Category Badge */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: getCategoryColor(option.category),
-          color: 'white',
-          padding: '4px 8px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          fontWeight: '600',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px'
-        }}
-      >
-        {option.category}
-      </div>
 
-      {/* Health Score Badge */}
-      {healthInfo && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '42px',
-            right: '12px',
-            background: healthInfo.category === 'Healthy' 
-              ? 'rgba(34, 197, 94, 0.8)' 
-              : healthInfo.category === 'Moderate' 
-                ? 'rgba(245, 158, 11, 0.8)' 
-                : 'rgba(239, 68, 68, 0.8)',
-            color: 'white',
-            padding: '3px 6px',
-            borderRadius: '4px',
-            fontSize: '10px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '2px'
-          }}
-        >
-          {healthInfo.category === 'Healthy' ? '💚' : healthInfo.category === 'Moderate' ? '💛' : '🧡'}
-          {healthInfo.score}
-        </div>
-      )}
 
       {/* Content */}
       <div style={{ marginTop: '35px', textAlign: 'center' }}>
+        {/* Restaurant Image */}
+        {option.realRestaurantData?.photos && option.realRestaurantData.photos.length > 0 && (
+          <div style={{
+            width: '100%',
+            height: '120px',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            marginBottom: '12px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+          }}>
+            <img
+              src={getPhotoUrl(option.realRestaurantData.photos[0], 400)}
+              alt={`${option.name} restaurant`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
+              onError={(e) => {
+                // Hide image if it fails to load
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          </div>
+        )}
+        
         <h3
           style={{
             fontSize: '18px',
@@ -249,13 +297,17 @@ const FoodCard: React.FC<FoodCardProps> = ({
             justifyContent: 'center'
           }}
         >
-          <span>📍</span>
-          {option.nearbyLocations && option.nearbyLocations.length > 0 ? (
-            <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
-              {option.nearbyLocations[0].name}
-            </span>
+          {option.realRestaurantData ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {renderStars(option.realRestaurantData.rating)}
+              <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '4px' }}>
+                ({option.realRestaurantData.totalRatings})
+              </span>
+            </div>
           ) : (
-            option.location
+            <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
+              No rating available
+            </span>
           )}
         </div>
 
@@ -281,35 +333,6 @@ const FoodCard: React.FC<FoodCardProps> = ({
           {option.priceLevel ? ['$', '$$', '$$$', '$$$$'][option.priceLevel - 1] : '$'}
         </div>
 
-        {/* Discover Button */}
-        {onDiscoverClick && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDiscoverClick(option)
-            }}
-            style={{
-              background: '#047857',
-              border: '1px solid #065f46',
-              color: 'white',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              width: '100%',
-              marginTop: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#065f46'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#047857'
-            }}
-          >
-            🔍 Discover
-          </button>
-        )}
       </div>
 
     </div>

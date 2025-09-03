@@ -23,6 +23,60 @@ const SmartRestaurantDiscovery: React.FC<SmartRestaurantDiscoveryProps> = ({
   const cravingService = CravingToRestaurantService.getInstance()
   const placesService = GooglePlacesService.getInstance()
 
+  const renderStars = (rating: number) => {
+    const stars: JSX.Element[] = []
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    const hasQuarterStar = rating % 1 >= 0.25 && rating % 1 < 0.5
+
+    // Add full stars
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(
+        <img
+          key={`full-${i}`}
+          src="/src/images/Star_Full.png"
+          alt="Full star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    }
+
+    // Add half or quarter star if needed
+    if (hasHalfStar) {
+      stars.push(
+        <img
+          key="half"
+          src="/src/images/Star_Half.png"
+          alt="Half star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    } else if (hasQuarterStar) {
+      stars.push(
+        <img
+          key="quarter"
+          src="/src/images/Star_Quarter.png"
+          alt="Quarter star"
+          style={{
+            width: '16px',
+            height: '16px',
+            objectFit: 'contain'
+          }}
+        />
+      )
+    }
+
+    return stars
+  }
+
   useEffect(() => {
     if (userLocation) {
       analyzeCravingAndFindRestaurants()
@@ -423,8 +477,11 @@ const SmartRestaurantDiscovery: React.FC<SmartRestaurantDiscoveryProps> = ({
                       gap: '16px',
                       fontSize: '14px'
                     }}>
-                      <span style={{ color: '#f97316', fontWeight: '600' }}>
-                        ⭐ {restaurant.rating} ({restaurant.totalRatings} reviews)
+                      <span style={{ color: '#f97316', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {renderStars(restaurant.rating)}
+                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          ({restaurant.totalRatings} reviews)
+                        </span>
                       </span>
                       <span style={{ color: '#10b981', fontWeight: '600' }}>
                         💰 {getPriceLevelText(restaurant.priceLevel)}
@@ -433,9 +490,21 @@ const SmartRestaurantDiscovery: React.FC<SmartRestaurantDiscoveryProps> = ({
                         📏 {getDistanceText(restaurant.distance)}
                       </span>
                       {restaurant.openNow && (
-                        <span style={{ color: '#059669', fontWeight: '600' }}>
-                          🟢 Open Now
-                        </span>
+                        <img 
+                          src="/src/images/Open.png"
+                          alt="Open"
+                          style={{
+                            position: 'absolute',
+                            top: '-5px',
+                            left: '-5px',
+                            width: '35px',
+                            height: '35px',
+                            objectFit: 'contain',
+                            transform: 'rotate(-45deg)',
+                            zIndex: 10,
+                            filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))'
+                          }}
+                        />
                       )}
                     </div>
                   </div>
